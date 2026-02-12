@@ -1,461 +1,929 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>訂餐管理系統</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    
-    <!-- 重要：改用 UMD 版本，保證在靜態網頁可執行 -->
-    <!-- 1. React -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <!-- 2. ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- 3. Babel Standalone -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <style>
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f3f4f6;
-        }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        iframe { display: block; border: none; width: 100%; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
+
+  <style>
+    :root {
+      --primary: #4285f4;
+      --danger: #dc3545;
+      --bg: #f8f9fa;
+      --card: #fff;
+      --text: #333;
+      --muted: #666;
+      --border: #e5e7eb;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* 頂部導航 */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .topbar-inner {
+      max-width: 1100px;
+      margin: auto;
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .brand .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--primary);
+      display: inline-block;
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .nav button {
+      border: 1px solid var(--border);
+      background: white;
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+
+    .nav button:hover {
+      border-color: #cfd6e3;
+      transform: translateY(-1px);
+    }
+
+    .nav button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    /* 內容區 */
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 18px 14px 60px;
+    }
+
+    .page {
+      display: none;
+    }
+    .page.active {
+      display: block;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 18px;
+    }
+
+    /* 共用標題 */
+    .page-title {
+      margin: 0 0 14px;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+    }
+
+    .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* 表單 iframe */
+    .form-frame {
+      width: 100%;
+      height: 850px;
+      border: 0;
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    /* 查詢頁樣式（保留你的風格） */
+    #queryPage body { background: transparent; }
+    #queryPage h2 { color: #333; text-align: center; margin: 0 0 14px; }
+    #queryPage .controls {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+    }
+    #queryPage label { font-weight: bold; margin-right: 5px; }
+    #queryPage select {
+      font-size: 16px;
+      padding: 8px;
+      width: 220px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
+    }
+    #queryPage table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+      margin-top: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    #queryPage th, #queryPage td {
+      border: 1px solid #e5e5e5;
+      padding: 10px;
+      text-align: center;
+      font-size: 15px;
+    }
+    #queryPage th { background-color: #f8f9fa; color: #555; }
+    #queryPage tr:nth-child(even) { background-color: #fcfcfc; }
+    #queryPage .total-row { font-weight: bold; background: #e9ecef !important; }
+
+    /* 刪除頁樣式（保留你的風格） */
+    #deletePage .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    #deletePage .header-btns { display: flex; gap: 8px; }
+    #deletePage .refresh-btn {
+      background: white;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    #deletePage .del-all-btn {
+      background: white;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    #deletePage .del-all-btn:hover { background: var(--danger); color: white; }
+    #deletePage .table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    #deletePage table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 14px; }
+    #deletePage th, #deletePage td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+    #deletePage th { background: #f8f9fa; color: #666; font-weight: bold; }
+    #deletePage tr:hover { background: #fcfcfc; }
+    #deletePage .btn-del {
+      background: #fff0f0;
+      color: var(--danger);
+      border: 1px solid #ffcccc;
+      padding: 6px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-weight: 800;
+    }
+    #deletePage .btn-del:hover { background: var(--danger); color: white; }
+
+    /* 刪除頁載入遮罩 */
+    #loadingOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.95); z-index: 9999;
+      display: none;
+      justify-content: center; align-items: center; flex-direction: column;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* 刪除頁密碼彈窗 */
+    #modalOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 3000;
+      display: none; justify-content: center; align-items: center;
+    }
+    #modalBox {
+      background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 340px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;
+      border: 1px solid #eee;
+    }
+    #pwdInput {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns button {
+      flex: 1; padding: 10px;
+      border: none; border-radius: 10px;
+      cursor: pointer; font-weight: bold;
+    }
+    #btnConfirm { background: var(--primary); color: #fff; }
+    #btnCancel { background: #eee; color: #333; }
+
+    /* 設定頁（保留你的卡片風格） */
+    #settingsPage .settings-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+      max-width: 380px;
+      margin: auto;
+      border: 1px solid #eee;
+    }
+    #settingsPage h3 { margin-top: 0; color: #333; text-align: center; }
+    #settingsPage .field { margin-bottom: 15px; }
+    #settingsPage label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #666;
+      font-weight: bold;
+    }
+    #settingsPage input, #settingsPage select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    #settingsPage button {
+      width: 100%;
+      padding: 12px;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+    #settingsPage button:hover { background: #357abd; }
+    #settingsPage button:disabled { background: #ccc; }
+    #settingsPage #status {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    #settingsPage .success { color: #28a745; font-weight: 800; }
+    #settingsPage .error { color: #dc3545; font-weight: 800; }
+
+  </style>
 </head>
+
 <body>
-    <div id="root"></div>
 
-    <!-- 加上 data-presets="typescript,react" 讓 Babel 編譯 TSX -->
-    <script type="text/babel" data-presets="typescript,react">
-        // ==========================================
-        // 0. 初始化環境變數 (取代 import)
-        // ==========================================
-        const { useState, useEffect, useMemo } = React;
-        // ReactDOM 在 React 18 UMD 中通常直接掛載在 window.ReactDOM
-        
-        // ==========================================
-        // 1. 常數設定
-        // ==========================================
-        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?embedded=true";
-        const LOOKUP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
-        const MANAGEMENT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
-        const MANAGEMENT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
-        const SETTINGS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec";
+  <!-- 頂部選單 -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="dot"></span>
+        <span>訂餐系統</span>
+      </div>
+      <div class="nav">
+        <button class="active" data-page="formPage">📝 填單</button>
+        <button data-page="queryPage">🔎 查詢</button>
+        <button data-page="deletePage">🗑️ 刪除</button>
+        <button data-page="settingsPage">⚙️ 設定</button>
+      </div>
+    </div>
+  </div>
 
-        enum AppTab {
-          FORM = 'form',
-          LOOKUP = 'lookup',
-          MANAGEMENT = 'management',
-          SETTINGS = 'settings'
-        }
+  <!-- 內容 -->
+  <div class="container">
 
-        // ==========================================
-        // 2. 工具函式
-        // ==========================================
-        function parseCSV(text) {
-          const result = [];
-          let cur = [];
-          let curVal = "";
-          let inQuotes = false;
-          for (let i = 0; i < text.length; i++) {
-            const ch = text[i];
-            const next = text[i + 1];
-            if (inQuotes) {
-              if (ch === '"' && next === '"') { curVal += '"'; i++; }
-              else if (ch === '"') inQuotes = false;
-              else curVal += ch;
-            } else {
-              if (ch === '"') inQuotes = true;
-              else if (ch === ',') { cur.push(curVal); curVal = ""; }
-              else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
-              else if (ch !== '\r') curVal += ch;
-            }
-          }
-          if (curVal !== "" || cur.length > 0) { cur.push(curVal); result.push(cur); }
-          return result;
-        }
+    <!-- 1) 填單 -->
+    <section id="formPage" class="page active">
+      <div class="card">
+        <h2 class="page-title">📝 訂餐填單</h2>
+        <div class="hint">此頁直接嵌入 Google 表單（原功能保留）。</div>
+        <div style="height:14px;"></div>
 
-        // ==========================================
-        // 3. 功能組件
-        // ==========================================
+        <iframe
+          class="form-frame"
+          src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header"
+          loading="lazy"
+        ></iframe>
+      </div>
+    </section>
 
-        const OrderForm = () => (
-          <div className="flex flex-col h-full" style={{minHeight: '800px'}}>
-            <div className="bg-blue-50 p-4 border-b border-blue-100 flex justify-center items-center">
-              <h2 className="text-lg font-bold text-blue-800">📝 填寫訂單</h2>
-            </div>
-            <iframe 
-              src={GOOGLE_FORM_URL} 
-              className="w-full flex-grow border-none" 
-              style={{ height: '100%', minHeight: '80vh' }}
-              title="Form"
-            >
-              載入中...
-            </iframe>
+    <!-- 2) 查詢 -->
+    <section id="queryPage" class="page">
+      <div class="card">
+        <h2 id="sheetTitle">訂單查詢系統</h2>
+
+        <div class="controls">
+          <div>
+            <label>訂購人員：</label>
+            <select id="buyerSelect">
+              <option value="">--請選擇--</option>
+            </select>
           </div>
-        );
 
-        const OrderLookup = () => {
-          const [data, setData] = useState({ title: '訂單查詢', header: [], dataRows: [] });
-          const [loading, setLoading] = useState(true);
-          const [selectedBuyer, setSelectedBuyer] = useState('');
-          const [selectedStat, setSelectedStat] = useState('');
+          <div>
+            <label>訂單統計：</label>
+            <select id="listSelect">
+              <option value="">--請選擇--</option>
+              <option value="list1">購買人 / 金額總計</option>
+              <option value="list2">項目 / 訂購數量總計</option>
+            </select>
+          </div>
+        </div>
 
-          const loadData = async () => {
-            setLoading(true);
-            try {
-              const res = await fetch(`${LOOKUP_CSV_URL}&t=${Date.now()}`);
-              const text = await res.text();
-              const parsed = parseCSV(text).filter(r => r.some(c => c.trim() !== ""));
-              if (parsed.length > 1) {
-                setData({
-                  title: `${parsed[0][2] || "訂單查詢"} (${parsed[0][0] || ""})`,
-                  header: parsed[1],
-                  dataRows: parsed.slice(2)
-                });
-              }
-            } catch (e) { console.error("CSV Load Error:", e); }
-            setLoading(false);
-          };
+        <table id="resultTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
 
-          useEffect(() => { loadData(); }, []);
+    <!-- 3) 刪除 -->
+    <section id="deletePage" class="page">
+      <div class="card">
 
-          const buyers = useMemo(() => {
-            const idx = data.header.indexOf("購買人");
-            if (idx === -1) return [];
-            return [...new Set(data.dataRows.map(r => (r[idx] || "").trim()).filter(v => v && v !== "購買人"))].sort();
-          }, [data]);
+        <div class="header">
+          <h3 style="margin:0;">📋 訂單管理清單</h3>
+          <div class="header-btns">
+            <button class="refresh-btn" onclick="fetchOrders()">🔄 重新整理</button>
+            <button class="del-all-btn" onclick="prepareDelete('all')">🗑️ 全部刪除</button>
+          </div>
+        </div>
 
-          return (
-            <div className="p-4 md:p-6">
-              <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">{data.title}</h2>
-              <div className="bg-gray-50 rounded-xl border p-4 mb-6 shadow-sm flex flex-wrap gap-4 items-center justify-center sm:justify-start">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-bold text-gray-700 whitespace-nowrap">訂購人：</label>
-                  <select value={selectedBuyer} onChange={e => { setSelectedBuyer(e.target.value); setSelectedStat(''); }} className="border rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm">
-                    <option value="">--請選擇--</option>
-                    <option value="ALL">全部訂單清單</option>
-                    {buyers.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-bold text-gray-700 whitespace-nowrap">統計報表：</label>
-                  <select value={selectedStat} onChange={e => { setSelectedStat(e.target.value); setSelectedBuyer(''); }} className="border rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm">
-                    <option value="">--請選擇--</option>
-                    <option value="list1">購買人 / 金額總計</option>
-                    <option value="list2">項目 / 數量總計</option>
-                  </select>
-                </div>
-                {loading && <span className="text-blue-500 animate-pulse font-medium ml-auto">同步資料中...</span>}
-              </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>時間</th>
+                <th>訂餐人員</th>
+                <th>便當品項</th>
+                <th>數量</th>
+                <th>備註</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
 
-              <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-md">
-                <table className="w-full text-sm">
-                  <thead className="bg-blue-600 text-white">
-                    {selectedStat === 'list1' ? (
-                      <tr><th className="p-3 border-r border-blue-500">購買人</th><th className="p-3">金額總計</th></tr>
-                    ) : selectedStat === 'list2' ? (
-                      <tr><th className="p-3 border-r border-blue-500">項目</th><th className="p-3">數量總計</th></tr>
-                    ) : (
-                      <tr>
-                        <th className="p-3 border-r border-blue-500">購買人</th><th className="p-3 border-r border-blue-500">項目</th>
-                        <th className="p-3 border-r border-blue-500 text-nowrap">單價</th><th className="p-3 border-r border-blue-500">加飯</th>
-                        <th className="p-3 border-r border-blue-500">加料</th><th className="p-3 border-r border-blue-500">數量</th>
-                        <th className="p-3">小計</th>
-                      </tr>
-                    )}
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {(!selectedBuyer && !selectedStat) ? (
-                      <tr><td colSpan={10} className="p-16 text-center text-gray-400 font-medium">請從上方選單選擇查詢條件</td></tr>
-                    ) : selectedStat === 'list1' ? (
-                      (() => {
-                        const summary = {};
-                        let total = 0;
-                        const idxB = data.header.indexOf("購買人");
-                        const idxS = data.header.indexOf("小計");
-                        data.dataRows.forEach(r => {
-                          const name = (r[idxB] || "").trim();
-                          const amt = Number(r[idxS]) || 0;
-                          if (name) { summary[name] = (summary[name] || 0) + amt; total += amt; }
-                        });
-                        return <>
-                          {Object.keys(summary).sort().map(n => <tr key={n} className="hover:bg-blue-50"><td className="p-3 border-r text-center">{n}</td><td className="p-3 text-center font-bold text-blue-600">{summary[n]}</td></tr>)}
-                          <tr className="bg-blue-50 font-bold"><td className="p-3 border-r text-center">全體總計</td><td className="p-3 text-center text-blue-700 text-lg">{total}</td></tr>
-                        </>;
-                      })()
-                    ) : selectedStat === 'list2' ? (
-                      (() => {
-                        const summary = {};
-                        let total = 0;
-                        const idxI = data.header.indexOf("項目");
-                        const idxQ = data.header.indexOf("數量");
-                        data.dataRows.forEach(r => {
-                          const item = (r[idxI] || "").trim();
-                          const qty = Number(r[idxQ]) || 0;
-                          if (item) { summary[item] = (summary[item] || 0) + qty; total += qty; }
-                        });
-                        return <>
-                          {Object.keys(summary).sort().map(i => <tr key={i} className="hover:bg-blue-50"><td className="p-3 border-r text-center">{i}</td><td className="p-3 text-center font-bold text-blue-600">{summary[i]}</td></tr>)}
-                          <tr className="bg-blue-50 font-bold"><td className="p-3 border-r text-center">總數量</td><td className="p-3 text-center text-blue-700 text-lg">{total}</td></tr>
-                        </>;
-                      })()
-                    ) : (
-                      (() => {
-                        const header = data.header;
-                        const idx = {
-                          item: header.indexOf("項目"), price: header.indexOf("單價"), rice: header.indexOf("加飯"),
-                          add: header.indexOf("加料"), qty: header.indexOf("數量"), sub: header.indexOf("小計"), buyer: header.indexOf("購買人")
-                        };
-                        const filtered = selectedBuyer === "ALL" ? data.dataRows : data.dataRows.filter(r => (r[idx.buyer] || "").trim() === selectedBuyer);
-                        let total = 0;
-                        return <>
-                          {filtered.map((r, i) => {
-                            const sub = Number(r[idx.sub]) || 0; total += sub;
-                            return <tr key={i} className="hover:bg-blue-50 transition-colors">
-                              <td className="p-2.5 border-r text-center font-medium">{r[idx.buyer]}</td>
-                              <td className="p-2.5 border-r text-center">{r[idx.item]}</td>
-                              <td className="p-2.5 border-r text-center text-gray-500">{r[idx.price]}</td>
-                              <td className="p-2.5 border-r text-center text-gray-500">{r[idx.rice]}</td>
-                              <td className="p-2.5 border-r text-center text-gray-500">{r[idx.add]}</td>
-                              <td className="p-2.5 border-r text-center font-bold">{r[idx.qty]}</td>
-                              <td className="p-2.5 text-center font-bold text-blue-600">{sub}</td>
-                            </tr>
-                          })}
-                          {selectedBuyer !== "ALL" && <tr className="bg-blue-50 font-bold"><td colSpan={6} className="p-3 border-r text-right text-gray-700">個人合計</td><td className="p-3 text-center text-blue-700 text-lg">{total}</td></tr>}
-                        </>;
-                      })()
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          );
-        };
+      </div>
+    </section>
 
-        const OrderManagement = () => {
-          const [orders, setOrders] = useState([]);
-          const [loading, setLoading] = useState(false);
-          const [showModal, setShowModal] = useState(false);
-          const [targetRow, setTargetRow] = useState(null);
-          const [password, setPassword] = useState('');
+    <!-- 4) 設定 -->
+    <section id="settingsPage" class="page">
+      <div class="settings-card">
+        <h3>訂餐管理系統</h3>
 
-          const fetchOrders = async () => {
-            setLoading(true);
-            try {
-              const res = await fetch(`${MANAGEMENT_CSV_URL}&t=${Date.now()}`);
-              const text = await res.text();
-              const rows = parseCSV(text);
-              if (rows.length < 2) { setOrders([]); }
-              else {
-                const header = rows[0];
-                const idx = { time: header.indexOf("時間戳記"), user: header.indexOf("訂餐人員"), item: header.indexOf("便當品項"), qty: header.indexOf("數量"), note: header.indexOf("備註") };
-                setOrders(rows.slice(1).map((r, i) => ({
-                  time: r[idx.time] || "", user: r[idx.user] || "", item: r[idx.item] || "", qty: r[idx.qty] || "", note: r[idx.note] || "", row: i + 2
-                })).filter(o => o.user));
-              }
-            } catch (e) { alert("無法連結 CSV 資料庫"); }
-            setLoading(false);
-          };
+        <div class="field">
+          <label>訂餐日期</label>
+          <input type="date" id="orderDate" value="2026-01-26">
+        </div>
 
-          useEffect(() => { fetchOrders(); }, []);
+        <div class="field">
+          <label>店家選單</label>
+          <select id="restaurant">
+            <option>載入中...</option>
+          </select>
+        </div>
 
-          const handleDelete = async () => {
-            if (!password) { alert("請輸入管理密碼"); return; }
-            setShowModal(false);
-            setLoading(true);
-            try {
-              const res = await fetch(MANAGEMENT_SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ row: targetRow, password: password })
-              });
-              const result = await res.json();
-              alert(result.message);
-              if (result.status === 'success') fetchOrders();
-            } catch (e) { alert("伺服器通訊錯誤"); }
-            setLoading(false);
-          };
+        <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
 
-          return (
-            <div className="p-4 md:p-6 relative">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-                <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">📋 訂單後台管理</h3>
-                <div className="flex gap-2">
-                  <button onClick={fetchOrders} className="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-white bg-gray-50 shadow-sm transition-all flex items-center gap-1">🔄 刷新資料</button>
-                  <button onClick={() => { setTargetRow('all'); setShowModal(true); setPassword(''); }} className="text-sm px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all bg-red-50 shadow-sm flex items-center gap-1">🗑️ 全部清空</button>
-                </div>
-              </div>
+        <div class="field">
+          <label>帳號</label>
+          <input type="text" id="acc" placeholder="請輸入帳號">
+        </div>
 
-              <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-md">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100 border-b border-gray-200">
-                    <tr>
-                      <th className="p-3 text-gray-600">時間</th><th className="p-3 text-gray-600">人員</th>
-                      <th className="p-3 text-gray-600">品項</th><th className="p-3 text-gray-600">數量</th>
-                      <th className="p-3 text-gray-600">備註</th><th className="p-3 text-gray-600">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {orders.length === 0 ? <tr><td colSpan={6} className="p-20 text-center text-gray-400 font-medium">資料庫目前無任何訂單</td></tr> : orders.map(o => (
-                      <tr key={o.row} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-3 text-center text-gray-500">{o.time.split(' ')[0]}</td>
-                        <td className="p-3 text-center font-bold text-gray-700">{o.user}</td>
-                        <td className="p-3 text-center">{o.item}</td>
-                        <td className="p-3 text-center font-bold text-blue-600">{o.qty}</td>
-                        <td className="p-3 text-xs text-gray-400 max-w-[120px] truncate">{o.note}</td>
-                        <td className="p-3 text-center">
-                          <button onClick={() => { setTargetRow(o.row); setShowModal(true); setPassword(''); }} className="text-xs font-bold px-3 py-1.5 bg-red-50 text-red-500 border border-red-200 rounded-md hover:bg-red-500 hover:text-white transition-all">刪除</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        <div class="field">
+          <label>密碼</label>
+          <input type="password" id="pwd" placeholder="請輸入密碼">
+        </div>
 
-              {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                  <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm transform scale-100 animate-in fade-in zoom-in duration-200">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">安全驗證</h3>
-                    <p className="text-sm text-gray-500 mb-6">{targetRow === 'all' ? "此操作將清空所有訂單，請確認密碼：" : "請輸入管理密碼執行刪除操作："}</p>
-                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full border-2 border-gray-200 p-3 rounded-xl mb-6 outline-none focus:border-blue-500 transition-colors text-lg text-center" placeholder="管理密碼" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleDelete()} />
-                    <div className="flex gap-3">
-                      <button onClick={() => setShowModal(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors">取消</button>
-                      <button onClick={handleDelete} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-100 transition-colors">確認執行</button>
-                    </div>
-                  </div>
-                </div>
-              )}
+        <button onclick="sendData()" id="btn">送出設定</button>
+        <div id="status"></div>
+      </div>
+    </section>
 
-              {loading && <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] flex items-center justify-center z-[90] rounded-xl"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>}
-            </div>
-          );
-        };
+  </div>
 
-        const Settings = () => {
-          const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], store: '', acc: '', pwd: '' });
-          const [stores, setStores] = useState([]);
-          const [loading, setLoading] = useState(false);
-          const [status, setStatus] = useState({ msg: '', type: '' });
+  <!-- 刪除頁：載入動畫 -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingText" style="margin-top:15px; color:#555;">正在取得訂單資料...</div>
+  </div>
 
-          useEffect(() => {
-            fetch(`${SETTINGS_SCRIPT_URL}?action=getOptions`)
-              .then(r => r.json()).then(data => {
-                const filtered = data.filter((v) => v);
-                setStores(filtered);
-                if (filtered.length > 0) setForm(prev => ({ ...prev, store: filtered[0] }));
-              }).catch(() => setStatus({ msg: "無法取得店家清單", type: "error" }));
-          }, []);
+  <!-- 刪除頁：密碼彈窗 -->
+  <div id="modalOverlay">
+    <div id="modalBox">
+      <h3 id="modalTitle" style="margin-top:0;">身分驗證</h3>
+      <p id="modalDesc" style="color:#666; font-size:14px;">請輸入管理密碼以執行刪除</p>
+      <input type="password" id="pwdInput" placeholder="請輸入密碼">
+      <div class="modal-btns">
+        <button id="btnCancel">取消</button>
+        <button id="btnConfirm">確認執行</button>
+      </div>
+    </div>
+  </div>
 
-          const submit = async () => {
-            if (!form.acc || !form.pwd || !form.date || !form.store) { alert("請填寫完整的帳密與設定資訊"); return; }
-            setLoading(true); setStatus({ msg: "正在更新伺服器設定...", type: "" });
-            try {
-              const url = `${SETTINGS_SCRIPT_URL}?action=submit&date=${encodeURIComponent(form.date)}&store=${encodeURIComponent(form.store)}&acc=${encodeURIComponent(form.acc)}&pwd=${encodeURIComponent(form.pwd)}`;
-              const res = await fetch(url);
-              const text = await res.text();
-              setStatus({ msg: text, type: text.includes("成功") ? "success" : "error" });
-              if (text.includes("成功")) setForm(prev => ({ ...prev, acc: '', pwd: '' }));
-            } catch (e) { setStatus({ msg: "伺服器連線超時", type: "error" }); }
-            setLoading(false);
-          };
+<script>
+/* =========================
+   A) 頁面切換（按鈕）
+========================= */
+(function initNav(){
+  const navButtons = document.querySelectorAll(".nav button");
+  const pages = document.querySelectorAll(".page");
 
-          return (
-            <div className="max-w-md mx-auto p-4 md:p-8">
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl overflow-hidden">
-                <div className="bg-blue-600 p-8 text-center text-white">
-                  <h3 className="text-2xl font-bold">⚙️ 系統初始化</h3>
-                  <p className="text-xs text-blue-100 mt-2 opacity-80 uppercase tracking-widest">Update daily lunch settings</p>
-                </div>
-                <div className="p-8 space-y-5">
-                  <div>
-                    <label className="text-xs font-black text-gray-400 uppercase mb-2 block tracking-wider">今日訂餐日期</label>
-                    <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="w-full p-3 bg-gray-50 border-2 border-gray-50 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-black text-gray-400 uppercase mb-2 block tracking-wider">配合店家選單</label>
-                    <select value={form.store} onChange={e => setForm({ ...form, store: e.target.value })} className="w-full p-3 bg-gray-50 border-2 border-gray-50 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium">
-                      {stores.length === 0 ? <option>載入店家選單中...</option> : stores.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div className="py-2"><div className="border-t-2 border-dashed border-gray-100"></div></div>
-                  <div>
-                    <label className="text-xs font-black text-gray-400 uppercase mb-2 block tracking-wider">管理員帳號</label>
-                    <input type="text" value={form.acc} onChange={e => setForm({ ...form, acc: e.target.value })} className="w-full p-3 bg-gray-50 border-2 border-gray-50 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition-all" placeholder="Admin Account" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-black text-gray-400 uppercase mb-2 block tracking-wider">管理員密碼</label>
-                    <input type="password" value={form.pwd} onChange={e => setForm({ ...form, pwd: e.target.value })} className="w-full p-3 bg-gray-50 border-2 border-gray-50 rounded-xl focus:border-blue-500 focus:bg-white outline-none transition-all" placeholder="Password" />
-                  </div>
-                  <button onClick={submit} disabled={loading} className={`w-full py-4 rounded-2xl font-bold text-white shadow-xl transform active:scale-95 transition-all ${loading ? 'bg-gray-300' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'}`}>
-                    {loading ? '通訊中...' : '確認更新系統設定'}
-                  </button>
-                  {status.msg && (
-                    <div className={`text-center p-3 rounded-xl text-sm font-bold animate-pulse ${status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                      {status.msg}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        };
+  function showPage(id){
+    pages.forEach(p => p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
 
-        // ==========================================
-        // 4. 主程式進入點 (Navigation)
-        // ==========================================
-        const App = () => {
-          const [activeTab, setActiveTab] = useState(AppTab.FORM);
-          const tabs = [
-            { id: AppTab.FORM, name: '📝 填單', comp: <OrderForm /> },
-            { id: AppTab.LOOKUP, name: '🔍 查詢', comp: <OrderLookup /> },
-            { id: AppTab.MANAGEMENT, name: '🗑️ 刪除', comp: <OrderManagement /> },
-            { id: AppTab.SETTINGS, name: '⚙️ 設定', comp: <Settings /> },
-          ];
+    navButtons.forEach(b => b.classList.remove("active"));
+    document.querySelector(`.nav button[data-page="${id}"]`).classList.add("active");
 
-          return (
-            <div className="min-h-screen flex flex-col bg-gray-100">
-              <header className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-100">
-                <div className="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-blue-200 shadow-lg">L</div>
-                    <span className="text-lg font-black text-gray-800 hidden sm:block">訂餐系統</span>
-                  </div>
-                  <nav className="flex space-x-1 sm:space-x-3 overflow-x-auto no-scrollbar py-1">
-                    {tabs.map(t => (
-                      <button 
-                        key={t.id} 
-                        onClick={() => setActiveTab(t.id)} 
-                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-                          activeTab === t.id 
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 scale-105' 
-                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
-                        }`}
-                      >
-                        {t.name}
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-              </header>
-              <main className="flex-grow container mx-auto px-4 py-8 max-w-5xl">
-                <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden min-h-[70vh] border border-gray-100">
-                  {tabs.find(t => t.id === activeTab)?.comp}
-                </div>
-              </main>
-              <footer className="bg-gray-800 text-gray-400 py-6 text-center text-[10px] tracking-[0.2em] uppercase font-bold">
-                &copy; {new Date().getFullYear()} Lunch Order Portal • Version 2.0
-              </footer>
-            </div>
-          );
-        };
+    // 切到刪除頁才刷新（避免一開頁就狂抓）
+    if(id === "deletePage"){
+      fetchOrders();
+    }
+  }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<React.StrictMode><App /></React.StrictMode>);
-    </script>
+  navButtons.forEach(btn => {
+    btn.addEventListener("click", () => showPage(btn.dataset.page));
+  });
+})();
+
+
+/* =========================
+   B) 訂餐查詢（原功能保留 + 修正字串錯誤）
+========================= */
+
+// ====== CSV 連結 ======
+const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
+
+let queryRows = [];
+let queryHeader = [];
+let queryDataRows = [];
+
+function parseCSV(text) {
+  const result = [];
+  let cur = [];
+  let curVal = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i+1];
+
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { curVal += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else curVal += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { cur.push(curVal); curVal = ""; }
+      else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
+      else if (ch !== '\r') curVal += ch;
+    }
+  }
+
+  if (curVal !== "" || cur.length > 0) {
+    cur.push(curVal);
+    result.push(cur);
+  }
+  return result;
+}
+
+async function loadQueryCSV() {
+  try {
+    const res = await fetch(queryCsvUrl);
+    const text = await res.text();
+    const parsed = parseCSV(text);
+
+    queryRows = parsed.filter(r => r.some(c => (c ?? "").trim() !== ""));
+
+    if (queryRows.length > 1) {
+      const titleInfo = queryRows[0];
+      document.getElementById("sheetTitle").innerText =
+        (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
+
+      queryHeader = queryRows[1];
+      queryDataRows = queryRows.slice(2);
+
+      buildBuyerDropdown();
+    }
+  } catch (e) {
+    alert("讀取資料失敗，請確認 CSV 連結是否正確並已發布。");
+  }
+}
+
+function buildBuyerDropdown() {
+  const buyerIdx = queryHeader.indexOf("購買人");
+  if (buyerIdx === -1) {
+    alert("找不到「購買人」欄位，請檢查工作表標題是否位於第二列。");
+    return;
+  }
+
+  const set = new Set();
+  queryDataRows.forEach(r => {
+    const val = (r[buyerIdx] ?? "").trim();
+    if (val && val !== "購買人") set.add(val);
+  });
+
+  const select = document.getElementById("buyerSelect");
+  select.innerHTML = `
+    <option value="">--請選擇--</option>
+    <option value="ALL">全部訂單清單</option>
+  `;
+
+  [...set].sort().forEach(v => {
+    const op = document.createElement("option");
+    op.value = v;
+    op.textContent = v;
+    select.appendChild(op);
+  });
+}
+
+function renderNormalTable(buyer) {
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+
+  const idxItem = queryHeader.indexOf("項目");
+  const idxPrice = queryHeader.indexOf("單價");
+  const idxRice = queryHeader.indexOf("加飯");
+  const idxAdd = queryHeader.indexOf("加料");
+  const idxQty = queryHeader.indexOf("數量");
+  const idxSub = queryHeader.indexOf("小計");
+  const idxBuyer = queryHeader.indexOf("購買人");
+
+  thead.innerHTML = `
+    <tr>
+      <th>購買人</th>
+      <th>項目</th>
+      <th>單價</th>
+      <th>加飯</th>
+      <th>加料</th>
+      <th>數量</th>
+      <th>小計</th>
+    </tr>
+  `;
+
+  let filtered = buyer === "ALL"
+    ? queryDataRows
+    : queryDataRows.filter(r => (r[idxBuyer] ?? "").trim() === buyer);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7">沒有查詢到資料</td></tr>`;
+    return;
+  }
+
+  let totalSum = 0;
+
+  filtered.forEach(r => {
+    const subTotal = Number(r[idxSub]) || 0;
+    totalSum += subTotal;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${r[idxBuyer] ?? ""}</td>
+        <td>${r[idxItem] ?? ""}</td>
+        <td>${r[idxPrice] ?? ""}</td>
+        <td>${r[idxRice] ?? ""}</td>
+        <td>${r[idxAdd] ?? ""}</td>
+        <td>${r[idxQty] ?? ""}</td>
+        <td>${subTotal}</td>
+      </tr>
+    `;
+  });
+
+  if (buyer !== "ALL") {
+    tbody.innerHTML += `
+      <tr class="total-row">
+        <td colspan="6">個人合計</td>
+        <td>${totalSum}</td>
+      </tr>
+    `;
+  }
+}
+
+function renderList1() {
+  const idxBuyer = queryHeader.indexOf("購買人");
+  const idxSub = queryHeader.indexOf("小計");
+
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+
+  thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
+  tbody.innerHTML = "";
+
+  const summary = {};
+  queryDataRows.forEach(r => {
+    const name = (r[idxBuyer] ?? "").trim();
+    const amt = Number(r[idxSub]) || 0;
+    if (name) summary[name] = (summary[name] || 0) + amt;
+  });
+
+  let grandTotal = 0;
+  Object.keys(summary).sort().forEach(name => {
+    grandTotal += summary[name];
+    tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
+  });
+
+  tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
+}
+
+function renderList2() {
+  const idxItem = queryHeader.indexOf("項目");
+  const idxQty = queryHeader.indexOf("數量");
+
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+
+  thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
+  tbody.innerHTML = "";
+
+  const summary = {};
+  queryDataRows.forEach(r => {
+    const item = (r[idxItem] ?? "").trim();
+    const qty = Number(r[idxQty]) || 0;
+    if (item) summary[item] = (summary[item] || 0) + qty;
+  });
+
+  let grandQty = 0;
+  Object.keys(summary).sort().forEach(item => {
+    grandQty += summary[item];
+    tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
+  });
+
+  tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
+}
+
+document.getElementById("buyerSelect").addEventListener("change", (e) => {
+  document.getElementById("listSelect").value = "";
+  if (e.target.value) renderNormalTable(e.target.value);
+});
+
+document.getElementById("listSelect").addEventListener("change", (e) => {
+  document.getElementById("buyerSelect").value = "";
+  const opt = e.target.value;
+  if (opt === "list1") renderList1();
+  else if (opt === "list2") renderList2();
+});
+
+loadQueryCSV();
+
+
+/* =========================
+   C) 訂餐刪除（原功能保留 + 修正 fetch/字串錯誤）
+========================= */
+
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
+let targetRow = null;
+
+async function fetchOrders() {
+  showLoading(true, "更新清單中...");
+  try {
+    const res = await fetch(`${CSV_URL}&t=${new Date().getTime()}`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    renderDeleteTable(rows);
+  } catch (err) {
+    alert("讀取失敗，請確認網路連線或 CSV 連結");
+  } finally {
+    showLoading(false);
+  }
+}
+
+function renderDeleteTable(rows) {
+  const tbody = document.getElementById('tableBody');
+
+  if (!rows || rows.length < 2) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px; color:#999;">目前尚無訂單</td></tr>';
+    return;
+  }
+
+  const header = rows[0];
+  const data = rows.slice(1);
+
+  const idxTime = header.indexOf("時間戳記");
+  const idxUser = header.indexOf("訂餐人員");
+  const idxItem = header.indexOf("便當品項");
+  const idxQty = header.indexOf("數量");
+  const idxNote = header.indexOf("備註");
+
+  tbody.innerHTML = data.map((row, i) => {
+    if (!row[idxUser]) return '';
+
+    const sheetRow = i + 2;
+
+    let time = row[idxTime] || "";
+    if (time.includes("/")) {
+      const parts = time.split(" ");
+      const d = parts[0].split("/").slice(1).join("/");
+      const t = (parts[1] || "").substring(0,5);
+      time = `${d} ${t}`;
+    }
+
+    return `
+      <tr>
+        <td>${time}</td>
+        <td>${row[idxUser] ?? ""}</td>
+        <td>${row[idxItem] ?? ""}</td>
+        <td>${row[idxQty] ?? ""}</td>
+        <td style="color:#666; font-size:12px;">${row[idxNote] ?? ""}</td>
+        <td><button class="btn-del" onclick="prepareDelete(${sheetRow})">刪除</button></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function prepareDelete(row) {
+  targetRow = row;
+
+  const desc = document.getElementById('modalDesc');
+  if (row === 'all') {
+    desc.innerHTML = "<b style='color:red'>警告：即將刪除所有訂單資料！</b><br>請輸入密碼以確認：";
+  } else {
+    desc.innerText = "請輸入管理密碼以執行單筆刪除";
+  }
+
+  document.getElementById('pwdInput').value = "";
+  document.getElementById('modalOverlay').style.display = 'flex';
+  document.getElementById('pwdInput').focus();
+}
+
+document.getElementById('btnCancel').onclick = () => {
+  document.getElementById('modalOverlay').style.display = 'none';
+};
+
+document.getElementById('btnConfirm').onclick = async () => {
+  const password = document.getElementById('pwdInput').value;
+  if (!password) { alert("請輸入密碼"); return; }
+
+  document.getElementById('modalOverlay').style.display = 'none';
+
+  showLoading(true, targetRow === 'all'
+    ? "正在清空所有訂單..."
+    : "正在執行單筆刪除..."
+  );
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ row: targetRow, password: password })
+    });
+
+    const result = await res.json();
+    alert(result.message);
+
+    if (result.status === 'success') {
+      fetchOrders();
+    }
+  } catch (err) {
+    alert("伺服器連線失敗，請稍後再試。");
+  } finally {
+    showLoading(false);
+  }
+};
+
+function showLoading(show, text) {
+  const el = document.getElementById('loadingOverlay');
+  const txt = document.getElementById('loadingText');
+
+  if (show) {
+    el.style.display = 'flex';
+    if (text) txt.innerText = text;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+
+/* =========================
+   D) 設定頁（原功能保留）
+========================= */
+
+const scriptUrl = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
+
+function loadSettingsOptions() {
+  fetch(scriptUrl + "?action=getOptions")
+    .then(res => res.json())
+    .then(data => {
+      const select = document.getElementById('restaurant');
+      select.innerHTML = '';
+      data.forEach(item => {
+        if(item) {
+          let opt = document.createElement('option');
+          opt.value = item;
+          opt.innerHTML = item;
+          select.appendChild(opt);
+        }
+      });
+    })
+    .catch(err => {
+      document.getElementById('status').innerHTML = "選單載入失敗";
+      document.getElementById('status').className = "error";
+    });
+}
+
+loadSettingsOptions();
+
+function sendData() {
+  const btn = document.getElementById('btn');
+  const status = document.getElementById('status');
+
+  const date = document.getElementById('orderDate').value;
+  const store = document.getElementById('restaurant').value;
+  const acc = document.getElementById('acc').value;
+  const pwd = document.getElementById('pwd').value;
+
+  if (!acc || !pwd || !date || !store) {
+    alert("請填寫完整資訊");
+    return;
+  }
+
+  btn.disabled = true;
+  status.className = "";
+  status.innerHTML = "處理中...";
+
+  const finalUrl =
+    `${scriptUrl}?action=submit&date=${encodeURIComponent(date)}&store=${encodeURIComponent(store)}&acc=${encodeURIComponent(acc)}&pwd=${encodeURIComponent(pwd)}`;
+
+  fetch(finalUrl)
+    .then(res => res.text())
+    .then(text => {
+      status.innerHTML = text;
+      status.className = text.includes("成功") ? "success" : "error";
+      btn.disabled = false;
+
+      if(text.includes("成功")) {
+        document.getElementById('acc').value = "";
+        document.getElementById('pwd').value = "";
+      }
+    })
+    .catch(err => {
+      status.innerHTML = "連線發生錯誤";
+      status.className = "error";
+      btn.disabled = false;
+    });
+}
+</script>
+
 </body>
 </html>
