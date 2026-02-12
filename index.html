@@ -8,7 +8,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Babel Standalone: 用於在瀏覽器中直接執行 TSX -->
+    
+    <!-- 重要：改用 UMD 版本，保證在靜態網頁可執行 -->
+    <!-- 1. React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <!-- 2. ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 3. Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
@@ -16,37 +22,22 @@
             font-family: 'Noto Sans TC', sans-serif;
             background-color: #f3f4f6;
         }
-        /* 隱藏捲軸但保留功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* 讓 iframe 填滿剩餘空間 */
-        iframe {
-             display: block; 
-             border: none; 
-             height: 100vh; 
-             width: 100%;
-        }
+        iframe { display: block; border: none; width: 100%; }
     </style>
-
-    <!-- 定義 React 模組來源 -->
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@19",
-        "react-dom/client": "https://esm.sh/react-dom@19/client"
-      }
-    }
-    </script>
 </head>
 <body>
     <div id="root"></div>
-    
-    <!-- 主要邏輯程式碼 -->
-    <script type="text/babel" data-type="module" data-presets="typescript,react">
-        import React, { useState, useEffect, useMemo } from 'react';
-        import ReactDOM from 'react-dom/client';
 
+    <!-- 加上 data-presets="typescript,react" 讓 Babel 編譯 TSX -->
+    <script type="text/babel" data-presets="typescript,react">
+        // ==========================================
+        // 0. 初始化環境變數 (取代 import)
+        // ==========================================
+        const { useState, useEffect, useMemo } = React;
+        // ReactDOM 在 React 18 UMD 中通常直接掛載在 window.ReactDOM
+        
         // ==========================================
         // 1. 常數設定
         // ==========================================
@@ -66,9 +57,9 @@
         // ==========================================
         // 2. 工具函式
         // ==========================================
-        function parseCSV(text: string): string[][] {
-          const result: string[][] = [];
-          let cur: string[] = [];
+        function parseCSV(text) {
+          const result = [];
+          let cur = [];
           let curVal = "";
           let inQuotes = false;
           for (let i = 0; i < text.length; i++) {
@@ -94,14 +85,14 @@
         // ==========================================
 
         const OrderForm = () => (
-          <div className="flex flex-col h-full min-h-[1000px]">
+          <div className="flex flex-col h-full" style={{minHeight: '800px'}}>
             <div className="bg-blue-50 p-4 border-b border-blue-100 flex justify-center items-center">
               <h2 className="text-lg font-bold text-blue-800">📝 填寫訂單</h2>
             </div>
             <iframe 
               src={GOOGLE_FORM_URL} 
               className="w-full flex-grow border-none" 
-              style={{ minHeight: '80vh' }}
+              style={{ height: '100%', minHeight: '80vh' }}
               title="Form"
             >
               載入中...
@@ -184,7 +175,7 @@
                       <tr><td colSpan={10} className="p-16 text-center text-gray-400 font-medium">請從上方選單選擇查詢條件</td></tr>
                     ) : selectedStat === 'list1' ? (
                       (() => {
-                        const summary: any = {};
+                        const summary = {};
                         let total = 0;
                         const idxB = data.header.indexOf("購買人");
                         const idxS = data.header.indexOf("小計");
@@ -200,7 +191,7 @@
                       })()
                     ) : selectedStat === 'list2' ? (
                       (() => {
-                        const summary: any = {};
+                        const summary = {};
                         let total = 0;
                         const idxI = data.header.indexOf("項目");
                         const idxQ = data.header.indexOf("數量");
