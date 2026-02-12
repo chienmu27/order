@@ -23,25 +23,26 @@
       color: var(--text);
     }
 
-    /* 頂部導航 */
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 999;
-      background: white;
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-
-    .topbar-inner {
+    /* 內容區 */
+    .container {
       max-width: 1100px;
       margin: auto;
-      padding: 12px 14px;
+      padding: 18px 14px 60px;
+    }
+
+    /* 🔥 改成一般頁面內的選單區（不再是橫幅框架） */
+    .menu-bar {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 14px;
+      margin-bottom: 18px;
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
     }
 
     .brand {
@@ -50,6 +51,7 @@
       align-items: center;
       font-weight: 800;
       letter-spacing: 0.5px;
+      font-size: 18px;
     }
 
     .brand .dot {
@@ -86,13 +88,6 @@
       background: var(--primary);
       border-color: var(--primary);
       color: white;
-    }
-
-    /* 內容區 */
-    .container {
-      max-width: 1100px;
-      margin: auto;
-      padding: 18px 14px 60px;
     }
 
     .page {
@@ -329,13 +324,15 @@
 
 <body>
 
-  <!-- 頂部選單 -->
-  <div class="topbar">
-    <div class="topbar-inner">
+  <div class="container">
+
+    <!-- ✅ 變成頁面內選單，不再是橫幅框架 -->
+    <div class="menu-bar">
       <div class="brand">
         <span class="dot"></span>
         <span>訂餐系統</span>
       </div>
+
       <div class="nav">
         <button class="active" data-page="formPage">📝 填單</button>
         <button data-page="queryPage">🔎 查詢</button>
@@ -343,17 +340,13 @@
         <button data-page="settingsPage">⚙️ 設定</button>
       </div>
     </div>
-  </div>
-
-  <!-- 內容 -->
-  <div class="container">
 
     <!-- 1) 填單 -->
     <section id="formPage" class="page active">
       <div class="card">
         <h2 class="page-title">📝 訂餐填單</h2>
         <div class="hint">此頁直接嵌入 Google 表單（原功能保留）。</div>
-        <div style="height:14px;"></div>
+        <div style="height:150px;"></div>
 
         <iframe
           class="form-frame"
@@ -494,7 +487,6 @@
     navButtons.forEach(b => b.classList.remove("active"));
     document.querySelector(`.nav button[data-page="${id}"]`).classList.add("active");
 
-    // 切到刪除頁才刷新（避免一開頁就狂抓）
     if(id === "deletePage"){
       fetchOrders();
     }
@@ -510,7 +502,6 @@
    B) 訂餐查詢（原功能保留 + 修正字串錯誤）
 ========================= */
 
-// ====== CSV 連結 ======
 const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
 
 let queryRows = [];
