@@ -592,7 +592,8 @@ function renderNormalTable(buyer) {
 
   const idxItem = queryHeader.indexOf("項目");
   const idxPrice = queryHeader.indexOf("單價");
-
+  const idxRice = queryHeader.indexOf("加飯");
+  const idxAdd = queryHeader.indexOf("加料");
   const idxQty = queryHeader.indexOf("數量");
   const idxSub = queryHeader.indexOf("小計");
   const idxBuyer = queryHeader.indexOf("購買人");
@@ -602,7 +603,8 @@ function renderNormalTable(buyer) {
       <th>購買人</th>
       <th>項目</th>
       <th>單價</th>
-
+      <th>加飯</th>
+      <th>加料</th>
       <th>數量</th>
       <th>小計</th>
     </tr>
