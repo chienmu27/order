@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>訂餐管理系統 (手機優化版)</title>
+  <title>訂餐管理系統</title>
   <style>
     :root {
-      --primary-color: #2e7d32; /* 森林綠 */
-      --primary-light: #4caf50;
+      --primary-color: #4285f4;
       --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #c8e6c9 100%);
+      --card-bg: rgba(255, 255, 255, 0.95);
       --btn-blue: linear-gradient(180deg, #1e88ff 0%, #1565c0 100%);
       --btn-red: linear-gradient(180deg, #ff5252 0%, #d32f2f 100%);
-      --card-bg: rgba(255, 255, 255, 0.9);
       --shadow: 0 12px 30px rgba(0,0,0,0.1);
+      --border: #e5e7eb;
     }
 
     * { box-sizing: border-box; }
@@ -28,384 +28,392 @@
 
     .wrap { width: min(1000px, 100%); }
 
-    /* 標題樣式 */
-    .title-container { text-align: center; margin-bottom: 20px; }
+    /* 標題與導覽 */
+    .header-area { text-align: center; margin-bottom: 20px; }
     h1 {
       background: var(--primary-color); color: white;
-      padding: 12px 35px; border-radius: 50px;
-      display: inline-flex; align-items: center; gap: 12px;
-      font-size: clamp(20px, 5vw, 28px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      padding: 10px 25px; border-radius: 50px;
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: clamp(18px, 5vw, 24px);
+      box-shadow: var(--shadow);
     }
 
-    /* 導覽按鈕 */
-    .nav-buttons { 
-      display: flex; justify-content: center; gap: 10px; 
-      margin-bottom: 20px; flex-wrap: wrap; 
+    .nav-buttons {
+      display: flex; justify-content: center; gap: 8px;
+      margin-bottom: 20px; flex-wrap: wrap;
     }
-    .btn {
-      padding: 10px 20px; font-size: 15px; font-weight: bold; cursor: pointer;
+
+    .btn-nav {
+      padding: 10px 18px; font-size: 15px; font-weight: bold; cursor: pointer;
       border: none; color: white; border-radius: 50px;
       background: var(--btn-blue);
-      transition: 0.3s; min-width: 100px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: 0.3s; opacity: 0.7;
     }
-    .btn:hover { transform: translateY(-2px); opacity: 0.9; }
-    .btn.active { background: var(--primary-color); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
+    .btn-nav.active { opacity: 1; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
-    /* 區塊設定 */
+    /* 內容區塊 */
     .section {
       display: none; background: var(--card-bg);
       padding: 20px; border-radius: 20px; box-shadow: var(--shadow);
-      margin-bottom: 30px;
+      animation: fadeIn 0.4s ease;
     }
-    .active { display: block; }
+    .section.active { display: block; }
 
-    /* --- 填單表單 iframe 優化 --- */
-    .iframe-container {
-      width: 100%;
-      overflow: hidden; /* 防止內框出現捲軸 */
-    }
-    iframe { 
-      width: 100%; 
-      height: 1800px; /* 預設高度足夠顯示整個表單 */
-      border: none; 
-      border-radius: 12px; 
-      background: white; 
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* 表單頁面專用優化 */
+    #form-section { padding: 0; overflow: hidden; }
+    .iframe-container { width: 100%; height: 80vh; -webkit-overflow-scrolling: touch; overflow-y: auto; }
+    iframe { width: 100%; height: 2000px; border: none; }
+
+    /* 查詢與表格樣式 */
+    .controls { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; justify-content: center; }
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    select, input {
+      padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px;
     }
 
-    /* 查詢、刪除、設定頁面表格與卡片樣式 (維持原功能外觀) */
-    .controls, .settings-card {
-      background: white; padding: 20px; border-radius: 15px;
-      margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    }
-    table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
+    .table-responsive { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; font-size: 14px; }
     th, td { padding: 12px; border: 1px solid #eee; text-align: center; }
-    th { background: #f4f7f4; color: var(--primary-color); }
-    .total-row { background: #e8f5e9; font-weight: bold; }
-    
-    /* 刪除按鈕 */
-    .btn-del { background: var(--btn-red); color: white; border: none; padding: 5px 15px; border-radius: 50px; cursor: pointer; }
+    th { background: #f8f9fa; font-weight: bold; }
+    .total-row { background: #e9ecef; font-weight: bold; }
 
-    /* 載入與彈窗 */
-    #loadingOverlay {
+    /* 刪除按鈕樣式 */
+    .btn-del {
+      background: #fff0f0; color: #dc3545; border: 1px solid #ffcccc;
+      padding: 5px 10px; border-radius: 8px; cursor: pointer; font-weight: bold;
+    }
+    .btn-del:hover { background: #dc3545; color: white; }
+
+    .btn-action {
+      padding: 12px 24px; background: var(--btn-blue); color: white; border: none;
+      border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;
+    }
+
+    /* 彈窗與遮罩 */
+    #loadingOverlay, #modalOverlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255,255,255,0.9); z-index: 999;
+      background: rgba(0,0,0,0.6); z-index: 999;
       display: none; justify-content: center; align-items: center; flex-direction: column;
     }
-    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    @media (max-width: 600px) {
-      iframe { height: 1600px; } /* 手機板高度微調 */
-      .nav-buttons .btn { flex: 1 1 40%; }
-    }
+    .modal-box { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; }
   </style>
 </head>
 <body>
 
-  <div class="wrap">
-    <div class="title-container"><h1>🍱 訂餐管理系統</h1></div>
-    
-    <div class="nav-buttons">
-      <button class="btn active" onclick="showSection('form-section', this)">📝 填單報名</button>
-      <button class="btn" onclick="showSection('query-section', this)">🔎 訂單查詢</button>
-      <button class="btn" onclick="showSection('delete-section', this)">🗑️ 訂單管理</button>
-      <button class="btn" onclick="showSection('settings-section', this)">⚙️ 系統設定</button>
-    </div>
+<div class="wrap">
+  <div class="header-area">
+    <h1>🍱 訂餐管理系統</h1>
+  </div>
 
-    <div id="form-section" class="section active">
-      <div class="iframe-container">
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?embedded=true">載入中…</iframe>
-      </div>
-    </div>
+  <div class="nav-buttons">
+    <button class="btn-nav active" onclick="showSection('form-section')">📝 填單</button>
+    <button class="btn-nav" onclick="showSection('query-section')">🔎 查詢</button>
+    <button class="btn-nav" onclick="showSection('delete-section')">🗑️ 刪除</button>
+    <button class="btn-nav" onclick="showSection('settings-section')">⚙️ 設定</button>
+  </div>
 
-    <div id="query-section" class="section">
-      <h2 id="sheetTitle" style="text-align:center;">訂單查詢統計</h2>
-      <div class="controls">
-        <div style="margin-bottom:15px;">
-          <label>訂購人員：</label>
-          <select id="buyerSelect" style="padding:8px; border-radius:8px; width:100%; max-width:200px;">
-            <option value="">--請選擇--</option>
-          </select>
-        </div>
-        <div>
-          <label>統計報表：</label>
-          <select id="listSelect" style="padding:8px; border-radius:8px; width:100%; max-width:200px;">
-            <option value="">--請選擇--</option>
-            <option value="list1">個人金額總計</option>
-            <option value="list2">品項數量總計</option>
-          </select>
-        </div>
-      </div>
-      <div style="overflow-x:auto;">
-        <table id="resultTable">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="delete-section" class="section">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h3 style="margin:0;">📋 訂單清單</h3>
-        <button class="btn" onclick="fetchOrders()" style="min-width:80px; font-size:13px;">🔄 重新整理</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table>
-          <thead>
-            <tr><th>時間</th><th>人員</th><th>品項</th><th>數量</th><th>操作</th></tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="settings-section" class="section">
-      <div class="settings-card" style="max-width:400px; margin:auto;">
-        <h3 style="text-align:center;">⚙️ 系統參數設定</h3>
-        <div style="margin-bottom:15px;">
-          <label style="display:block; margin-bottom:5px;">訂餐日期</label>
-          <input type="date" id="orderDate" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
-        </div>
-        <div style="margin-bottom:15px;">
-          <label style="display:block; margin-bottom:5px;">目前店家</label>
-          <select id="restaurant" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;"><option>載入中...</option></select>
-        </div>
-        <div style="margin-bottom:15px;">
-          <label style="display:block; margin-bottom:5px;">管理帳號</label>
-          <input type="text" id="acc" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
-        </div>
-        <div style="margin-bottom:20px;">
-          <label style="display:block; margin-bottom:5px;">管理密碼</label>
-          <input type="password" id="pwd" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;">
-        </div>
-        <button class="btn" onclick="sendData()" id="btn" style="width:100%;">儲存設定</button>
-        <div id="status" style="margin-top:10px; text-align:center;"></div>
-      </div>
+  <div id="form-section" class="section active">
+    <div class="iframe-container">
+      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header">載入中…</iframe>
     </div>
   </div>
 
-  <div id="modalOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000;">
-    <div style="background:white; padding:25px; border-radius:20px; width:90%; max-width:320px; text-align:center;">
-      <h3>身分驗證</h3>
-      <input type="password" id="pwdInput" placeholder="請輸入管理密碼" style="width:100%; padding:10px; margin:15px 0; border:1px solid #ddd; border-radius:10px;">
-      <div style="display:flex; gap:10px;">
-        <button class="btn" onclick="document.getElementById('modalOverlay').style.display='none'" style="background:#eee; color:#333; flex:1;">取消</button>
-        <button class="btn" id="btnConfirm" style="flex:1;">執行</button>
+  <div id="query-section" class="section">
+    <h3 id="sheetTitle" style="text-align:center;">訂單查詢</h3>
+    <div class="controls">
+      <div class="field-group">
+        <label>訂購人員</label>
+        <select id="buyerSelect"><option value="">--請選擇--</option></select>
       </div>
+      <div class="field-group">
+        <label>統計方式</label>
+        <select id="listSelect">
+          <option value="">--請選擇--</option>
+          <option value="list1">購買人 / 金額總計</option>
+          <option value="list2">項目 / 數量總計</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table id="resultTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
-  <div id="loadingOverlay">
-    <div class="spinner"></div>
-    <p id="loadingText">處理中...</p>
+  <div id="delete-section" class="section">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3 style="margin:0;">📋 訂單清單</h3>
+      <button class="btn-del" onclick="prepareDelete('all')">清空全部</button>
+    </div>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr><th>時間</th><th>人員</th><th>品項</th><th>數量</th><th>備註</th><th>操作</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <button class="btn-action" onclick="fetchOrders()" style="margin-top:15px;">🔄 重新整理清單</button>
   </div>
 
-  <script>
-    // --- 共用與導覽邏輯 ---
-    function showSection(id, btn) {
-      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-      document.querySelectorAll(".nav-buttons .btn").forEach(b => b.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-      btn.classList.add("active");
-      if (id === 'delete-section') fetchOrders();
-      window.scrollTo(0, 0); // 切換頁面時回到頂端
+  <div id="settings-section" class="section">
+    <div style="max-width:400px; margin:auto;">
+      <h3 style="text-align:center;">系統參數設定</h3>
+      <div class="field-group" style="margin-bottom:15px;">
+        <label>訂餐日期</label>
+        <input type="date" id="orderDate" value="2026-01-26">
+      </div>
+      <div class="field-group" style="margin-bottom:15px;">
+        <label>店家選單</label>
+        <select id="restaurant"><option>載入中...</option></select>
+      </div>
+      <hr>
+      <div class="field-group" style="margin-bottom:15px;">
+        <label>管理帳號</label>
+        <input type="text" id="acc" placeholder="輸入帳號">
+      </div>
+      <div class="field-group" style="margin-bottom:15px;">
+        <label>管理密碼</label>
+        <input type="password" id="pwd" placeholder="輸入密碼">
+      </div>
+      <button class="btn-action" id="btn" onclick="sendData()">送出設定內容</button>
+      <div id="status" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="loadingOverlay">
+  <div style="color:white;">處理中，請稍候...</div>
+</div>
+
+<div id="modalOverlay">
+  <div class="modal-box">
+    <h3>身分驗證</h3>
+    <p id="modalDesc">請輸入密碼以執行刪除</p>
+    <input type="password" id="pwdInput" style="width:100%; margin-bottom:15px;">
+    <div style="display:flex; gap:10px;">
+      <button class="btn-action" style="background:#eee; color:#333;" onclick="closeModal()">取消</button>
+      <button class="btn-action" id="btnConfirm">確認</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   核心邏輯與頁面切換
+========================= */
+const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
+const deleteCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
+const SCRIPT_DEL_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
+const SCRIPT_SET_URL = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
+
+let queryRows = [];
+let queryHeader = [];
+let queryDataRows = [];
+let targetRow = null;
+
+function showSection(id) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".btn-nav").forEach(b => b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  event.currentTarget.classList.add("active");
+
+  if(id === 'delete-section') fetchOrders();
+  if(id === 'query-section') loadQueryCSV();
+}
+
+/* =========================
+   資料處理共用函式
+========================= */
+function parseCSV(text) {
+  const result = [];
+  let cur = [];
+  let curVal = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i+1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { curVal += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else curVal += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { cur.push(curVal); curVal = ""; }
+      else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
+      else if (ch !== '\r') curVal += ch;
     }
+  }
+  if (curVal !== "" || cur.length > 0) { cur.push(curVal); result.push(cur); }
+  return result;
+}
 
-    // --- CSV 解析器 ---
-    function parseCSV(text) {
-      const result = [];
-      let cur = [];
-      let curVal = "";
-      let inQuotes = false;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        if (inQuotes) {
-          if (ch === '"' && text[i+1] === '"') { curVal += '"'; i++; }
-          else if (ch === '"') inQuotes = false;
-          else curVal += ch;
-        } else {
-          if (ch === '"') inQuotes = true;
-          else if (ch === ',') { cur.push(curVal); curVal = ""; }
-          else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
-          else if (ch !== '\r') curVal += ch;
-        }
-      }
-      if (curVal || cur.length) { cur.push(curVal); result.push(cur); }
-      return result;
+/* =========================
+   查詢功能
+========================= */
+async function loadQueryCSV() {
+  try {
+    const res = await fetch(`${queryCsvUrl}&t=${Date.now()}`);
+    const text = await res.text();
+    queryRows = parseCSV(text).filter(r => r.some(c => (c ?? "").trim() !== ""));
+    if (queryRows.length > 1) {
+      document.getElementById("sheetTitle").innerText = queryRows[0][2] || "訂單查詢";
+      queryHeader = queryRows[1];
+      queryDataRows = queryRows.slice(2);
+      buildBuyerDropdown();
     }
+  } catch (e) { console.error("Query Load Error"); }
+}
 
-    /* =========================
-       查詢功能 (QUERY)
-    ========================= */
-    const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
-    let queryData = [];
-    let queryHeader = [];
+function buildBuyerDropdown() {
+  const buyerIdx = queryHeader.indexOf("購買人");
+  const set = new Set();
+  queryDataRows.forEach(r => { if(r[buyerIdx]) set.add(r[buyerIdx].trim()); });
+  const select = document.getElementById("buyerSelect");
+  select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
+  [...set].sort().forEach(v => {
+    const op = document.createElement("option"); op.value = v; op.textContent = v;
+    select.appendChild(op);
+  });
+}
 
-    async function loadQueryData() {
-      try {
-        const res = await fetch(queryCsvUrl);
-        const text = await res.text();
-        const rows = parseCSV(text).filter(r => r.length > 1);
-        if(rows.length > 1) {
-          document.getElementById("sheetTitle").innerText = rows[0][2] + " 訂餐統計";
-          queryHeader = rows[1];
-          queryData = rows.slice(2);
-          const buyerIdx = queryHeader.indexOf("購買人");
-          const buyers = [...new Set(queryData.map(r => r[buyerIdx]).filter(v => v))];
-          const select = document.getElementById("buyerSelect");
-          buyers.sort().forEach(b => {
-            const opt = document.createElement("option"); opt.value = b; opt.innerText = b; select.appendChild(opt);
-          });
-        }
-      } catch (e) { console.error("查詢載入失敗"); }
+document.getElementById("buyerSelect").addEventListener("change", (e) => {
+  if (e.target.value) renderNormalTable(e.target.value);
+});
+
+document.getElementById("listSelect").addEventListener("change", (e) => {
+  const opt = e.target.value;
+  if (opt === "list1") renderList1();
+  else if (opt === "list2") renderList2();
+});
+
+function renderNormalTable(buyer) {
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+  thead.innerHTML = `<tr><th>人員</th><th>項目</th><th>單價</th><th>加飯</th><th>加料</th><th>數量</th><th>小計</th></tr>`;
+  tbody.innerHTML = "";
+  const idx = { item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf("加飯"), add: queryHeader.indexOf("加料"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計"), buy: queryHeader.indexOf("購買人") };
+  let filtered = buyer === "ALL" ? queryDataRows : queryDataRows.filter(r => (r[idx.buy] ?? "").trim() === buyer);
+  let total = 0;
+  filtered.forEach(r => {
+    const s = Number(r[idx.sub]) || 0; total += s;
+    tbody.innerHTML += `<tr><td>${r[idx.buy]}</td><td>${r[idx.item]}</td><td>${r[idx.price]}</td><td>${r[idx.rice]}</td><td>${r[idx.add]}</td><td>${r[idx.qty]}</td><td>${s}</td></tr>`;
+  });
+  if(buyer !== "ALL") tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${total}</td></tr>`;
+}
+
+function renderList1() {
+  const idxB = queryHeader.indexOf("購買人"), idxS = queryHeader.indexOf("小計");
+  const tbody = document.querySelector("#resultTable tbody");
+  document.querySelector("#resultTable thead").innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
+  tbody.innerHTML = "";
+  let sum = {}, grand = 0;
+  queryDataRows.forEach(r => { const n = r[idxB].trim(), a = Number(r[idxS]) || 0; sum[n] = (sum[n]||0)+a; });
+  Object.keys(sum).sort().forEach(n => { grand += sum[n]; tbody.innerHTML += `<tr><td>${n}</td><td>${sum[n]}</td></tr>`; });
+  tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grand}</td></tr>`;
+}
+
+function renderList2() {
+  const idxI = queryHeader.indexOf("項目"), idxQ = queryHeader.indexOf("數量");
+  const tbody = document.querySelector("#resultTable tbody");
+  document.querySelector("#resultTable thead").innerHTML = `<tr><th>項目</th><th>數量總計</th></tr>`;
+  tbody.innerHTML = "";
+  let sum = {}, grand = 0;
+  queryDataRows.forEach(r => { const i = r[idxI].trim(), q = Number(r[idxQ]) || 0; sum[i] = (sum[i]||0)+q; });
+  Object.keys(sum).sort().forEach(i => { grand += sum[i]; tbody.innerHTML += `<tr><td>${i}</td><td>${sum[i]}</td></tr>`; });
+  tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grand}</td></tr>`;
+}
+
+/* =========================
+   刪除管理
+========================= */
+async function fetchOrders() {
+  toggleLoading(true);
+  try {
+    const res = await fetch(`${deleteCsvUrl}&t=${Date.now()}`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    const tbody = document.getElementById('tableBody');
+    if (!rows || rows.length < 2) {
+      tbody.innerHTML = '<tr><td colspan="6">目前尚無訂單</td></tr>';
+      return;
     }
+    const data = rows.slice(1);
+    tbody.innerHTML = data.map((row, i) => `
+      <tr>
+        <td>${(row[0]||"").substring(5,11)}</td>
+        <td>${row[1]||""}</td>
+        <td>${row[2]||""}</td>
+        <td>${row[3]||""}</td>
+        <td style="font-size:11px">${row[4]||""}</td>
+        <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪</button></td>
+      </tr>
+    `).join('');
+  } finally { toggleLoading(false); }
+}
 
-    document.getElementById("buyerSelect").onchange = function() {
-      const val = this.value; if(!val) return;
-      document.getElementById("listSelect").value = "";
-      renderTable(queryData.filter(r => r[queryHeader.indexOf("購買人")] === val), "normal");
-    };
+function prepareDelete(row) {
+  targetRow = row;
+  document.getElementById('modalOverlay').style.display = 'flex';
+  document.getElementById('modalDesc').innerText = row === 'all' ? "警告：即將清空所有資料！" : "請輸入密碼確認刪除";
+}
 
-    document.getElementById("listSelect").onchange = function() {
-      const val = this.value; if(!val) return;
-      document.getElementById("buyerSelect").value = "";
-      renderTable(queryData, val);
-    };
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
 
-    function renderTable(data, mode) {
-      const thead = document.querySelector("#resultTable thead");
-      const tbody = document.querySelector("#resultTable tbody");
-      tbody.innerHTML = "";
-      
-      if(mode === "normal") {
-        thead.innerHTML = "<tr><th>品項</th><th>單價</th><th>數量</th><th>小計</th></tr>";
-        let sum = 0;
-        data.forEach(r => {
-          const sub = parseInt(r[queryHeader.indexOf("小計")]) || 0;
-          sum += sub;
-          tbody.innerHTML += `<tr><td>${r[queryHeader.indexOf("項目")]}</td><td>${r[queryHeader.indexOf("單價")]}</td><td>${r[queryHeader.indexOf("數量")]}</td><td>${sub}</td></tr>`;
-        });
-        tbody.innerHTML += `<tr class="total-row"><td colspan="3">個人總計</td><td>${sum}</td></tr>`;
-      } else if(mode === "list1") {
-        thead.innerHTML = "<tr><th>購買人</th><th>金額總計</th></tr>";
-        const map = {};
-        data.forEach(r => {
-          const name = r[queryHeader.indexOf("購買人")];
-          const sub = parseInt(r[queryHeader.indexOf("小計")]) || 0;
-          map[name] = (map[name] || 0) + sub;
-        });
-        Object.keys(map).sort().forEach(k => { tbody.innerHTML += `<tr><td>${k}</td><td>${map[k]}</td></tr>`; });
-      } else if(mode === "list2") {
-        thead.innerHTML = "<tr><th>品項</th><th>數量總計</th></tr>";
-        const map = {};
-        data.forEach(r => {
-          const item = r[queryHeader.indexOf("項目")];
-          const qty = parseInt(r[queryHeader.indexOf("數量")]) || 0;
-          map[item] = (map[item] || 0) + qty;
-        });
-        Object.keys(map).sort().forEach(k => { tbody.innerHTML += `<tr><td>${k}</td><td>${map[k]}</td></tr>`; });
-      }
-    }
+document.getElementById('btnConfirm').onclick = async () => {
+  const pwd = document.getElementById('pwdInput').value;
+  if(!pwd) return alert("請輸入密碼");
+  closeModal();
+  toggleLoading(true);
+  try {
+    const res = await fetch(SCRIPT_DEL_URL, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ row: targetRow, password: pwd })
+    });
+    const result = await res.json();
+    alert(result.message);
+    if (result.status === 'success') fetchOrders();
+  } catch (err) { alert("連線失敗"); }
+  finally { toggleLoading(false); }
+};
 
-    /* =========================
-       刪除功能 (DELETE)
-    ========================= */
-    const delCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
-    const GAS_DEL_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
+/* =========================
+   設定功能
+========================= */
+function loadSettingsOptions() {
+  fetch(SCRIPT_SET_URL + "?action=getOptions")
+    .then(res => res.json())
+    .then(data => {
+      const select = document.getElementById('restaurant');
+      select.innerHTML = '';
+      data.forEach(item => { if(item) select.add(new Option(item, item)); });
+    });
+}
+loadSettingsOptions();
 
-    async function fetchOrders() {
-      showLoading(true, "讀取資料中...");
-      try {
-        const res = await fetch(`${delCsvUrl}&t=${Date.now()}`);
-        const text = await res.text();
-        const rows = parseCSV(text).slice(1);
-        const tbody = document.getElementById("tableBody");
-        tbody.innerHTML = rows.filter(r => r[1]).map((r, i) => `
-          <tr>
-            <td style="font-size:11px;">${r[0].split(" ")[0]}</td>
-            <td>${r[1]}</td>
-            <td>${r[2]}</td>
-            <td>${r[3]}</td>
-            <td><button class="btn-del" onclick="askDelete(${i+2})">刪除</button></td>
-          </tr>
-        `).join("");
-      } catch (e) { alert("讀取失敗"); }
-      showLoading(false);
-    }
+function sendData() {
+  const btn = document.getElementById('btn'), status = document.getElementById('status');
+  const date = document.getElementById('orderDate').value, store = document.getElementById('restaurant').value;
+  const acc = document.getElementById('acc').value, pwd = document.getElementById('pwd').value;
 
-    let pendingDeleteRow = null;
-    function askDelete(row) {
-      pendingDeleteRow = row;
-      document.getElementById("modalOverlay").style.display = "flex";
-    }
+  if (!acc || !pwd) return alert("帳密不可為空");
+  btn.disabled = true; status.innerText = "處理中...";
 
-    document.getElementById("btnConfirm").onclick = async function() {
-      const pwd = document.getElementById("pwdInput").value;
-      if(!pwd) return;
-      document.getElementById("modalOverlay").style.display = "none";
-      showLoading(true, "執行刪除中...");
-      try {
-        const res = await fetch(GAS_DEL_URL, {
-          method: "POST",
-          body: JSON.stringify({ row: pendingDeleteRow, password: pwd })
-        });
-        const json = await res.json();
-        alert(json.message);
-        if(json.status === "success") fetchOrders();
-      } catch (e) { alert("連線錯誤"); }
-      showLoading(false);
-    };
+  const url = `${SCRIPT_SET_URL}?action=submit&date=${encodeURIComponent(date)}&store=${encodeURIComponent(store)}&acc=${encodeURIComponent(acc)}&pwd=${encodeURIComponent(pwd)}`;
+  fetch(url).then(res => res.text()).then(text => {
+    status.innerText = text;
+    status.style.color = text.includes("成功") ? "green" : "red";
+    btn.disabled = false;
+  });
+}
 
-    /* =========================
-       設定功能 (SETTINGS)
-    ========================= */
-    const GAS_SET_URL = "https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec";
+function toggleLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
+</script>
 
-    function loadSettings() {
-      fetch(GAS_SET_URL + "?action=getOptions")
-        .then(res => res.json())
-        .then(data => {
-          const s = document.getElementById("restaurant");
-          s.innerHTML = "";
-          data.forEach(v => { if(v) s.innerHTML += `<option value="${v}">${v}</option>`; });
-        });
-    }
-
-    async function sendData() {
-      const btn = document.getElementById("btn");
-      const status = document.getElementById("status");
-      const data = {
-        date: document.getElementById("orderDate").value,
-        store: document.getElementById("restaurant").value,
-        acc: document.getElementById("acc").value,
-        pwd: document.getElementById("pwd").value
-      };
-      if(!data.acc || !data.pwd) { alert("請輸入管理帳密"); return; }
-      btn.disabled = true; status.innerText = "正在儲存...";
-      try {
-        const url = `${GAS_SET_URL}?action=submit&date=${data.date}&store=${data.store}&acc=${data.acc}&pwd=${data.pwd}`;
-        const res = await fetch(url);
-        const text = await res.text();
-        status.innerText = text;
-        status.style.color = text.includes("成功") ? "green" : "red";
-      } catch (e) { status.innerText = "連線失敗"; }
-      btn.disabled = false;
-    }
-
-    function showLoading(show, text) {
-      document.getElementById("loadingOverlay").style.display = show ? "flex" : "none";
-      if(text) document.getElementById("loadingText").innerText = text;
-    }
-
-    // 初始化載入
-    window.onload = () => {
-      loadQueryData();
-      loadSettings();
-      // 設定預設日期為今天
-      document.getElementById('orderDate').valueAsDate = new Date();
-    };
-  </script>
 </body>
 </html>
