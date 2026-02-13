@@ -1,188 +1,363 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
 
-  <style>
-    :root {
-      --primary: #4285f4;
-      --danger: #dc3545;
-      --bg: #f8f9fa;
-      --card: #fff;
-      --text: #333;
-      --muted: #666;
-      --border: #e5e7eb;
-    }
+<style>
+:root{
+  --primary:#4285f4;
+  --danger:#dc3545;
+  --bg:#f8f9fa;
+  --card:#fff;
+  --text:#333;
+  --muted:#666;
+  --border:#e5e7eb;
+}
 
-    html, body {
-      margin: 0;
-      padding: 0;
-      font-family: "Microsoft JhengHei", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
+body{
+  margin:0;
+  font-family:"Microsoft JhengHei",sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
 
-    /* ✅ 桌機版：避免外層出現捲軸 */
-    @media (min-width: 992px) {
-      html, body {
-        height: 100%;
-        overflow: hidden;
-      }
-      .container {
-        height: 100vh;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-      .page.active {
-        flex: 1;
-        overflow: hidden;
-      }
-      .card {
-        height: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-      .form-frame {
-        flex: 1;
-        overflow: auto;
-      }
-    }
+/* 容器 */
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:18px 14px 60px;
+}
 
-    /* ✅ 手機版：內外框都可捲動 */
-    @media (max-width: 991px) {
-      html, body {
-        overflow: auto;
-      }
-      .container {
-        overflow: auto;
-      }
-      .form-frame {
-        height: 85vh;
-        overflow: auto;
-      }
-    }
+/* 選單 */
+.menu-bar{
+  background:white;
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.05);
+  padding:14px;
+  margin-bottom:18px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
 
-    .container {
-      max-width: 1100px;
-      margin: auto;
-      padding: 18px 14px 60px;
-    }
+.brand{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  font-weight:800;
+  font-size:18px;
+}
 
-    .menu-bar {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      padding: 14px;
-      margin-bottom: 18px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
+.brand .dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:var(--primary);
+}
 
-    .brand {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      font-weight: 800;
-      font-size: 18px;
-    }
+.nav{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
 
-    .brand .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--primary);
-      display: inline-block;
-    }
+.nav button{
+  border:1px solid var(--border);
+  background:white;
+  padding:9px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:700;
+  font-size:14px;
+  transition:0.2s;
+}
 
-    .nav {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+.nav button.active{
+  background:var(--primary);
+  border-color:var(--primary);
+  color:white;
+}
 
-    .nav button {
-      border: 1px solid var(--border);
-      background: white;
-      padding: 9px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 14px;
-      transition: 0.2s;
-    }
+.page{display:none;}
+.page.active{display:block;}
 
-    .nav button.active {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: white;
-    }
+.card{
+  background:white;
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.05);
+  padding:18px;
+}
 
-    .page { display: none; }
-    .page.active { display: block; }
+/* ================================
+   🔵 填單 iframe 響應式設定
+================================ */
 
-    .card {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      padding: 18px;
-    }
+/* 外框 (桌機預設無捲軸) */
+.form-wrapper{
+  width:100%;
+  border-radius:14px;
+  overflow:hidden;      /* 桌機不顯示外框捲軸 */
+}
 
-    .form-frame {
-      width: 100%;
-      height: 850px;
-      border: 0;
-      border-radius: 14px;
-      background: #fff;
-    }
+/* iframe 共用 */
+.form-frame{
+  width:100%;
+  border:0;
+  border-radius:14px;
+  background:#fff;
+}
 
-  </style>
+/* 桌機 */
+@media (min-width:769px){
+  .form-wrapper{
+    height:850px;
+  }
+  .form-frame{
+    height:100%;
+    overflow:auto;   /* 只有內框捲軸 */
+  }
+}
+
+/* 手機 */
+@media (max-width:768px){
+  .form-wrapper{
+    height:80vh;
+    overflow:auto;   /* 外框捲軸 */
+  }
+  .form-frame{
+    height:1000px;   /* 讓內框也出現捲軸 */
+    overflow:auto;
+  }
+}
+
+/* ================================ */
+/* 以下全部原樣保留 */
+/* ================================ */
+
+#queryPage h2{text-align:center;margin:0 0 14px;}
+#queryPage .controls{
+  background:#fff;
+  padding:15px;
+  border-radius:10px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.08);
+  margin-bottom:18px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 18px;
+  align-items:center;
+}
+#queryPage select{
+  font-size:16px;
+  padding:8px;
+  width:220px;
+  border:1px solid #ddd;
+  border-radius:8px;
+}
+#queryPage table{
+  border-collapse:collapse;
+  width:100%;
+  background:#fff;
+  margin-top:15px;
+  border-radius:10px;
+}
+#queryPage th,#queryPage td{
+  border:1px solid #e5e5e5;
+  padding:10px;
+  text-align:center;
+  font-size:15px;
+}
+#queryPage th{background:#f8f9fa;}
+#queryPage .total-row{font-weight:bold;background:#e9ecef!important;}
+
+/* 刪除頁樣式原封不動 */
+#deletePage .table-container{
+  background:white;
+  border-radius:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  overflow-x:auto;
+}
+#deletePage table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:720px;
+  font-size:14px;
+}
+#deletePage th,#deletePage td{
+  padding:12px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+}
+
+/* 設定頁原樣保留 */
+#settingsPage .settings-card{
+  background:white;
+  border-radius:16px;
+  box-shadow:0 4px 6px rgba(0,0,0,0.1);
+  padding:20px;
+  max-width:380px;
+  margin:auto;
+  border:1px solid #eee;
+}
+
+</style>
 </head>
 
 <body>
 
 <div class="container">
 
-  <div class="menu-bar">
-    <div class="brand">
-      <span class="dot"></span>
-      <span>訂餐系統</span>
-    </div>
-    <div class="nav">
-      <button class="active" data-page="formPage">📝 填單</button>
-      <button data-page="queryPage">🔎 查詢</button>
-      <button data-page="deletePage">🗑️ 刪除</button>
-      <button data-page="settingsPage">⚙️ 設定</button>
-    </div>
+<div class="menu-bar">
+  <div class="brand">
+    <span class="dot"></span>
+    <span>訂餐系統</span>
   </div>
+  <div class="nav">
+    <button class="active" data-page="formPage">📝 填單</button>
+    <button data-page="queryPage">🔎 查詢</button>
+    <button data-page="deletePage">🗑️ 刪除</button>
+    <button data-page="settingsPage">⚙️ 設定</button>
+  </div>
+</div>
 
-  <!-- 填單 -->
-  <section id="formPage" class="page active">
-    <div class="card">
+<!-- 填單 -->
+<section id="formPage" class="page active">
+  <div class="card">
+    <div class="form-wrapper">
       <iframe
         class="form-frame"
         src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header"
         loading="lazy">
       </iframe>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- 其餘頁面保留原樣 -->
-  <section id="queryPage" class="page"><div class="card">查詢頁內容</div></section>
-  <section id="deletePage" class="page"><div class="card">刪除頁內容</div></section>
-  <section id="settingsPage" class="page"><div class="card">設定頁內容</div></section>
+    <!-- 2) 查詢 -->
+    <section id="queryPage" class="page">
+      <div class="card">
+        <h2 id="sheetTitle">訂單查詢系統</h2>
 
-</div>
+        <div class="controls">
+          <div>
+            <label>訂購人員：</label>
+            <select id="buyerSelect">
+              <option value="">--請選擇--</option>
+            </select>
+          </div>
+
+          <div>
+            <label>訂單統計：</label>
+            <select id="listSelect">
+              <option value="">--請選擇--</option>
+              <option value="list1">購買人 / 金額總計</option>
+              <option value="list2">項目 / 訂購數量總計</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="resultTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3) 刪除 -->
+    <section id="deletePage" class="page">
+      <div class="card">
+
+        <div class="header">
+          <h3 style="margin:0;">📋 訂單管理清單</h3>
+          <div class="header-btns">
+            <button class="refresh-btn" onclick="fetchOrders()">🔄 重新整理</button>
+            <button class="del-all-btn" onclick="prepareDelete('all')">🗑️ 全部刪除</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>時間</th>
+                <th>訂餐人員</th>
+                <th>便當品項</th>
+                <th>數量</th>
+                <th>備註</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4) 設定 -->
+    <section id="settingsPage" class="page">
+      <div class="settings-card">
+        <h3>訂餐管理系統</h3>
+
+        <div class="field">
+          <label>訂餐日期</label>
+          <input type="date" id="orderDate" value="2026-01-26">
+        </div>
+
+        <div class="field">
+          <label>店家選單</label>
+          <select id="restaurant">
+            <option>載入中...</option>
+          </select>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
+
+        <div class="field">
+          <label>帳號</label>
+          <input type="text" id="acc" placeholder="請輸入帳號">
+        </div>
+
+        <div class="field">
+          <label>密碼</label>
+          <input type="password" id="pwd" placeholder="請輸入密碼">
+        </div>
+
+        <button onclick="sendData()" id="btn">送出設定</button>
+        <div id="status"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 刪除頁：載入動畫 -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingText" style="margin-top:15px; color:#555;">正在取得訂單資料...</div>
+  </div>
+
+  <!-- 刪除頁：密碼彈窗 -->
+  <div id="modalOverlay">
+    <div id="modalBox">
+      <h3 id="modalTitle" style="margin-top:0;">身分驗證</h3>
+      <p id="modalDesc" style="color:#666; font-size:14px;">請輸入管理密碼以執行刪除</p>
+      <input type="password" id="pwdInput" placeholder="請輸入密碼">
+      <div class="modal-btns">
+        <button id="btnCancel">取消</button>
+        <button id="btnConfirm">確認執行</button>
+      </div>
+    </div>
+  </div>
 
 <script>
+/* =========================
+   A) 頁面切換（按鈕）
+========================= */
 (function initNav(){
   const navButtons = document.querySelectorAll(".nav button");
   const pages = document.querySelectorAll(".page");
@@ -193,12 +368,434 @@
 
     navButtons.forEach(b => b.classList.remove("active"));
     document.querySelector(`.nav button[data-page="${id}"]`).classList.add("active");
+
+    if(id === "deletePage"){
+      fetchOrders();
+    }
   }
 
   navButtons.forEach(btn => {
     btn.addEventListener("click", () => showPage(btn.dataset.page));
   });
 })();
+
+
+/* =========================
+   B) 訂餐查詢（原功能保留 + 修正字串錯誤）
+========================= */
+
+const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
+
+let queryRows = [];
+let queryHeader = [];
+let queryDataRows = [];
+
+function parseCSV(text) {
+  const result = [];
+  let cur = [];
+  let curVal = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i+1];
+
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { curVal += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else curVal += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { cur.push(curVal); curVal = ""; }
+      else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
+      else if (ch !== '\r') curVal += ch;
+    }
+  }
+
+  if (curVal !== "" || cur.length > 0) {
+    cur.push(curVal);
+    result.push(cur);
+  }
+  return result;
+}
+
+async function loadQueryCSV() {
+  try {
+    const res = await fetch(queryCsvUrl);
+    const text = await res.text();
+    const parsed = parseCSV(text);
+
+    queryRows = parsed.filter(r => r.some(c => (c ?? "").trim() !== ""));
+
+    if (queryRows.length > 1) {
+      const titleInfo = queryRows[0];
+      document.getElementById("sheetTitle").innerText =
+        (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
+
+      queryHeader = queryRows[1];
+      queryDataRows = queryRows.slice(2);
+
+      buildBuyerDropdown();
+    }
+  } catch (e) {
+    alert("讀取資料失敗，請確認 CSV 連結是否正確並已發布。");
+  }
+}
+
+function buildBuyerDropdown() {
+  const buyerIdx = queryHeader.indexOf("購買人");
+  if (buyerIdx === -1) {
+    alert("找不到「購買人」欄位，請檢查工作表標題是否位於第二列。");
+    return;
+  }
+
+  const set = new Set();
+  queryDataRows.forEach(r => {
+    const val = (r[buyerIdx] ?? "").trim();
+    if (val && val !== "購買人") set.add(val);
+  });
+
+  const select = document.getElementById("buyerSelect");
+  select.innerHTML = `
+    <option value="">--請選擇--</option>
+    <option value="ALL">全部訂單清單</option>
+  `;
+
+  [...set].sort().forEach(v => {
+    const op = document.createElement("option");
+    op.value = v;
+    op.textContent = v;
+    select.appendChild(op);
+  });
+}
+
+function renderNormalTable(buyer) {
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+
+  const idxItem = queryHeader.indexOf("項目");
+  const idxPrice = queryHeader.indexOf("單價");
+  const idxRice = queryHeader.indexOf("加飯");
+  const idxAdd = queryHeader.indexOf("加料");
+  const idxQty = queryHeader.indexOf("數量");
+  const idxSub = queryHeader.indexOf("小計");
+  const idxBuyer = queryHeader.indexOf("購買人");
+
+  thead.innerHTML = `
+    <tr>
+      <th>購買人</th>
+      <th>項目</th>
+      <th>單價</th>
+      <th>加飯</th>
+      <th>加料</th>
+      <th>數量</th>
+      <th>小計</th>
+    </tr>
+  `;
+
+  let filtered = buyer === "ALL"
+    ? queryDataRows
+    : queryDataRows.filter(r => (r[idxBuyer] ?? "").trim() === buyer);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7">沒有查詢到資料</td></tr>`;
+    return;
+  }
+
+  let totalSum = 0;
+
+  filtered.forEach(r => {
+    const subTotal = Number(r[idxSub]) || 0;
+    totalSum += subTotal;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${r[idxBuyer] ?? ""}</td>
+        <td>${r[idxItem] ?? ""}</td>
+        <td>${r[idxPrice] ?? ""}</td>
+        <td>${r[idxRice] ?? ""}</td>
+        <td>${r[idxAdd] ?? ""}</td>
+        <td>${r[idxQty] ?? ""}</td>
+        <td>${subTotal}</td>
+      </tr>
+    `;
+  });
+
+  if (buyer !== "ALL") {
+    tbody.innerHTML += `
+      <tr class="total-row">
+        <td colspan="6">個人合計</td>
+        <td>${totalSum}</td>
+      </tr>
+    `;
+  }
+}
+
+function renderList1() {
+  const idxBuyer = queryHeader.indexOf("購買人");
+  const idxSub = queryHeader.indexOf("小計");
+
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+
+  thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
+  tbody.innerHTML = "";
+
+  const summary = {};
+  queryDataRows.forEach(r => {
+    const name = (r[idxBuyer] ?? "").trim();
+    const amt = Number(r[idxSub]) || 0;
+    if (name) summary[name] = (summary[name] || 0) + amt;
+  });
+
+  let grandTotal = 0;
+  Object.keys(summary).sort().forEach(name => {
+    grandTotal += summary[name];
+    tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
+  });
+
+  tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
+}
+
+function renderList2() {
+  const idxItem = queryHeader.indexOf("項目");
+  const idxQty = queryHeader.indexOf("數量");
+
+  const thead = document.querySelector("#resultTable thead");
+  const tbody = document.querySelector("#resultTable tbody");
+
+  thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
+  tbody.innerHTML = "";
+
+  const summary = {};
+  queryDataRows.forEach(r => {
+    const item = (r[idxItem] ?? "").trim();
+    const qty = Number(r[idxQty]) || 0;
+    if (item) summary[item] = (summary[item] || 0) + qty;
+  });
+
+  let grandQty = 0;
+  Object.keys(summary).sort().forEach(item => {
+    grandQty += summary[item];
+    tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
+  });
+
+  tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
+}
+
+document.getElementById("buyerSelect").addEventListener("change", (e) => {
+  document.getElementById("listSelect").value = "";
+  if (e.target.value) renderNormalTable(e.target.value);
+});
+
+document.getElementById("listSelect").addEventListener("change", (e) => {
+  document.getElementById("buyerSelect").value = "";
+  const opt = e.target.value;
+  if (opt === "list1") renderList1();
+  else if (opt === "list2") renderList2();
+});
+
+loadQueryCSV();
+
+
+/* =========================
+   C) 訂餐刪除（原功能保留 + 修正 fetch/字串錯誤）
+========================= */
+
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
+let targetRow = null;
+
+async function fetchOrders() {
+  showLoading(true, "更新清單中...");
+  try {
+    const res = await fetch(`${CSV_URL}&t=${new Date().getTime()}`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    renderDeleteTable(rows);
+  } catch (err) {
+    alert("讀取失敗，請確認網路連線或 CSV 連結");
+  } finally {
+    showLoading(false);
+  }
+}
+
+function renderDeleteTable(rows) {
+  const tbody = document.getElementById('tableBody');
+
+  if (!rows || rows.length < 2) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px; color:#999;">目前尚無訂單</td></tr>';
+    return;
+  }
+
+  const header = rows[0];
+  const data = rows.slice(1);
+
+  const idxTime = header.indexOf("時間戳記");
+  const idxUser = header.indexOf("訂餐人員");
+  const idxItem = header.indexOf("便當品項");
+  const idxQty = header.indexOf("數量");
+  const idxNote = header.indexOf("備註");
+
+  tbody.innerHTML = data.map((row, i) => {
+    if (!row[idxUser]) return '';
+
+    const sheetRow = i + 2;
+
+    let time = row[idxTime] || "";
+    if (time.includes("/")) {
+      const parts = time.split(" ");
+      const d = parts[0].split("/").slice(1).join("/");
+      const t = (parts[1] || "").substring(0,5);
+      time = `${d} ${t}`;
+    }
+
+    return `
+      <tr>
+        <td>${time}</td>
+        <td>${row[idxUser] ?? ""}</td>
+        <td>${row[idxItem] ?? ""}</td>
+        <td>${row[idxQty] ?? ""}</td>
+        <td style="color:#666; font-size:12px;">${row[idxNote] ?? ""}</td>
+        <td><button class="btn-del" onclick="prepareDelete(${sheetRow})">刪除</button></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function prepareDelete(row) {
+  targetRow = row;
+
+  const desc = document.getElementById('modalDesc');
+  if (row === 'all') {
+    desc.innerHTML = "<b style='color:red'>警告：即將刪除所有訂單資料！</b><br>請輸入密碼以確認：";
+  } else {
+    desc.innerText = "請輸入管理密碼以執行單筆刪除";
+  }
+
+  document.getElementById('pwdInput').value = "";
+  document.getElementById('modalOverlay').style.display = 'flex';
+  document.getElementById('pwdInput').focus();
+}
+
+document.getElementById('btnCancel').onclick = () => {
+  document.getElementById('modalOverlay').style.display = 'none';
+};
+
+document.getElementById('btnConfirm').onclick = async () => {
+  const password = document.getElementById('pwdInput').value;
+  if (!password) { alert("請輸入密碼"); return; }
+
+  document.getElementById('modalOverlay').style.display = 'none';
+
+  showLoading(true, targetRow === 'all'
+    ? "正在清空所有訂單..."
+    : "正在執行單筆刪除..."
+  );
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ row: targetRow, password: password })
+    });
+
+    const result = await res.json();
+    alert(result.message);
+
+    if (result.status === 'success') {
+      fetchOrders();
+    }
+  } catch (err) {
+    alert("伺服器連線失敗，請稍後再試。");
+  } finally {
+    showLoading(false);
+  }
+};
+
+function showLoading(show, text) {
+  const el = document.getElementById('loadingOverlay');
+  const txt = document.getElementById('loadingText');
+
+  if (show) {
+    el.style.display = 'flex';
+    if (text) txt.innerText = text;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+
+/* =========================
+   D) 設定頁（原功能保留）
+========================= */
+
+const scriptUrl = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
+
+function loadSettingsOptions() {
+  fetch(scriptUrl + "?action=getOptions")
+    .then(res => res.json())
+    .then(data => {
+      const select = document.getElementById('restaurant');
+      select.innerHTML = '';
+      data.forEach(item => {
+        if(item) {
+          let opt = document.createElement('option');
+          opt.value = item;
+          opt.innerHTML = item;
+          select.appendChild(opt);
+        }
+      });
+    })
+    .catch(err => {
+      document.getElementById('status').innerHTML = "選單載入失敗";
+      document.getElementById('status').className = "error";
+    });
+}
+
+loadSettingsOptions();
+
+function sendData() {
+  const btn = document.getElementById('btn');
+  const status = document.getElementById('status');
+
+  const date = document.getElementById('orderDate').value;
+  const store = document.getElementById('restaurant').value;
+  const acc = document.getElementById('acc').value;
+  const pwd = document.getElementById('pwd').value;
+
+  if (!acc || !pwd || !date || !store) {
+    alert("請填寫完整資訊");
+    return;
+  }
+
+  btn.disabled = true;
+  status.className = "";
+  status.innerHTML = "處理中...";
+
+  const finalUrl =
+    `${scriptUrl}?action=submit&date=${encodeURIComponent(date)}&store=${encodeURIComponent(store)}&acc=${encodeURIComponent(acc)}&pwd=${encodeURIComponent(pwd)}`;
+
+  fetch(finalUrl)
+    .then(res => res.text())
+    .then(text => {
+      status.innerHTML = text;
+      status.className = text.includes("成功") ? "success" : "error";
+      btn.disabled = false;
+
+      if(text.includes("成功")) {
+        document.getElementById('acc').value = "";
+        document.getElementById('pwd').value = "";
+      }
+    })
+    .catch(err => {
+      status.innerHTML = "連線發生錯誤";
+      status.className = "error";
+      btn.disabled = false;
+    });
+}
 </script>
 
 </body>
