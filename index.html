@@ -21,8 +21,6 @@
       font-family: "Microsoft JhengHei", sans-serif;
       background: var(--bg);
       color: var(--text);
-      /* 確保全域滑動流暢 */
-      -webkit-overflow-scrolling: touch;
     }
 
     /* 內容區 */
@@ -105,24 +103,37 @@
       border-radius: 16px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.05);
       padding: 18px;
-      /* 填單頁面的 card 不要有內距溢出，讓 iframe 填滿 */
-      overflow: hidden; 
     }
 
-    /* 🔥 修正後的表單 iframe 設定 */
+    /* 🔥 修正後的填單框架設定 */
+    .google-form-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* 桌機不顯示外框捲軸 */
+    }
+
     .form-frame {
       width: 100%;
-      height: 2500px; /* 使用你提供的高度，讓頁面展開避免 iframe 內捲軸 */
+      height: 1800px; /* 桌機預設高度 */
       border: none;
       border-radius: 12px;
       background: white;
       display: block;
-      /* 關鍵：禁用 iframe 內的捲軸行為，迫使頁面使用 body 的捲軸 */
-      overflow: hidden; 
+    }
+
+    /* 手機版響應式設定 */
+    @media (max-width: 768px) {
+      .google-form-wrapper {
+        overflow: visible; /* 讓手機版外框不阻礙頁面滑動 */
+      }
+      .form-frame {
+        height: 2500px; /* 手機版表單長度通常較長 */
+        -webkit-overflow-scrolling: touch; /* 優化 iOS 滑動感 */
+      }
     }
 
     /* 查詢頁樣式 */
-    #queryPage body { background: transparent; }
     #queryPage h2 { color: #333; text-align: center; margin: 0 0 14px; }
     #queryPage .controls {
       background: #fff;
@@ -163,153 +174,37 @@
     #queryPage tr:nth-child(even) { background-color: #fcfcfc; }
     #queryPage .total-row { font-weight: bold; background: #e9ecef !important; }
 
-    /* 刪除頁樣式 */
-    #deletePage .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
+    /* 刪除頁與彈窗樣式 */
+    #deletePage .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     #deletePage .header-btns { display: flex; gap: 8px; }
-    #deletePage .refresh-btn {
-      background: white;
-      border: 1px solid #ddd;
-      padding: 8px 12px;
-      cursor: pointer;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 700;
-    }
-    #deletePage .del-all-btn {
-      background: white;
-      border: 1px solid var(--danger);
-      color: var(--danger);
-      padding: 8px 12px;
-      cursor: pointer;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 800;
-    }
+    #deletePage .refresh-btn, #deletePage .del-all-btn { padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 14px; font-weight: 700; }
+    #deletePage .refresh-btn { background: white; border: 1px solid #ddd; }
+    #deletePage .del-all-btn { background: white; border: 1px solid var(--danger); color: var(--danger); }
     #deletePage .del-all-btn:hover { background: var(--danger); color: white; }
-    #deletePage .table-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      overflow-x: auto;
-    }
+    #deletePage .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow-x: auto; }
     #deletePage table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 14px; }
     #deletePage th, #deletePage td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
     #deletePage th { background: #f8f9fa; color: #666; font-weight: bold; }
-    #deletePage tr:hover { background: #fcfcfc; }
-    #deletePage .btn-del {
-      background: #fff0f0;
-      color: var(--danger);
-      border: 1px solid #ffcccc;
-      padding: 6px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.2s;
-      font-weight: 800;
-    }
-    #deletePage .btn-del:hover { background: var(--danger); color: white; }
-
-    /* 載入遮罩 */
-    #loadingOverlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255,255,255,0.95); z-index: 9999;
-      display: none;
-      justify-content: center; align-items: center; flex-direction: column;
-    }
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid var(--primary);
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-    }
+    #deletePage .btn-del { background: #fff0f0; color: var(--danger); border: 1px solid #ffcccc; padding: 6px 12px; border-radius: 10px; cursor: pointer; font-weight: 800; }
+    
+    #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; justify-content: center; align-items: center; flex-direction: column; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* 密碼彈窗 */
-    #modalOverlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5); z-index: 3000;
-      display: none; justify-content: center; align-items: center;
-    }
-    #modalBox {
-      background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 340px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;
-      border: 1px solid #eee;
-    }
-    #pwdInput {
-      width: 100%;
-      padding: 10px;
-      margin: 15px 0;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
+    #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: none; justify-content: center; align-items: center; }
+    #modalBox { background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 340px; text-align: center; border: 1px solid #eee; }
+    #pwdInput { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 10px; box-sizing: border-box; }
     .modal-btns { display: flex; gap: 10px; }
-    .modal-btns button {
-      flex: 1; padding: 10px;
-      border: none; border-radius: 10px;
-      cursor: pointer; font-weight: bold;
-    }
+    .modal-btns button { flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
     #btnConfirm { background: var(--primary); color: #fff; }
     #btnCancel { background: #eee; color: #333; }
 
-    /* 設定頁 */
-    #settingsPage .settings-card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      padding: 20px;
-      max-width: 380px;
-      margin: auto;
-      border: 1px solid #eee;
-    }
-    #settingsPage h3 { margin-top: 0; color: #333; text-align: center; }
+    /* 設定頁樣式 */
+    #settingsPage .settings-card { background: white; border-radius: 16px; padding: 20px; max-width: 380px; margin: auto; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     #settingsPage .field { margin-bottom: 15px; }
-    #settingsPage label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 5px;
-      color: #666;
-      font-weight: bold;
-    }
-    #settingsPage input, #settingsPage select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      box-sizing: border-box;
-      font-size: 14px;
-    }
-    #settingsPage button {
-      width: 100%;
-      padding: 12px;
-      background: #4285f4;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-      transition: 0.3s;
-    }
-    #settingsPage button:hover { background: #357abd; }
-    #settingsPage button:disabled { background: #ccc; }
-    #settingsPage #status {
-      margin-top: 15px;
-      text-align: center;
-      font-size: 14px;
-      min-height: 20px;
-    }
-    #settingsPage .success { color: #28a745; font-weight: 800; }
-    #settingsPage .error { color: #dc3545; font-weight: 800; }
+    #settingsPage label { display: block; font-size: 14px; margin-bottom: 5px; color: #666; font-weight: bold; }
+    #settingsPage input, #settingsPage select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
+    #settingsPage button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; }
   </style>
 </head>
 
@@ -330,12 +225,11 @@
     </div>
 
     <section id="formPage" class="page active">
-      <div class="card">
+      <div class="card google-form-wrapper">
         <iframe
           class="form-frame"
-          src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?embedded=true"
+          src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header"
           loading="lazy"
-          scrolling="no"
         >載入中…</iframe>
       </div>
     </section>
@@ -357,10 +251,7 @@
             </select>
           </div>
         </div>
-        <table id="resultTable">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
+        <table id="resultTable"><thead></thead><tbody></tbody></table>
       </div>
     </section>
 
@@ -376,9 +267,7 @@
         <div class="table-container">
           <table>
             <thead>
-              <tr>
-                <th>時間</th><th>訂餐人員</th><th>便當品項</th><th>數量</th><th>備註</th><th>操作</th>
-              </tr>
+              <tr><th>時間</th><th>訂餐人員</th><th>便當品項</th><th>數量</th><th>備註</th><th>操作</th></tr>
             </thead>
             <tbody id="tableBody"></tbody>
           </table>
@@ -398,41 +287,26 @@
           <select id="restaurant"><option>載入中...</option></select>
         </div>
         <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
-        <div class="field">
-          <label>帳號</label>
-          <input type="text" id="acc" placeholder="請輸入帳號">
-        </div>
-        <div class="field">
-          <label>密碼</label>
-          <input type="password" id="pwd" placeholder="請輸入密碼">
-        </div>
+        <div class="field"><label>帳號</label><input type="text" id="acc" placeholder="請輸入帳號"></div>
+        <div class="field"><label>密碼</label><input type="password" id="pwd" placeholder="請輸入密碼"></div>
         <button onclick="sendData()" id="btn">送出設定</button>
         <div id="status"></div>
       </div>
     </section>
   </div>
 
-  <div id="loadingOverlay">
-    <div class="spinner"></div>
-    <div id="loadingText" style="margin-top:15px; color:#555;">正在取得訂單資料...</div>
-  </div>
-
+  <div id="loadingOverlay"><div class="spinner"></div><div id="loadingText" style="margin-top:15px; color:#555;">正在處理中...</div></div>
   <div id="modalOverlay">
     <div id="modalBox">
-      <h3 id="modalTitle" style="margin-top:0;">身分驗證</h3>
-      <p id="modalDesc" style="color:#666; font-size:14px;">請輸入管理密碼以執行刪除</p>
+      <h3 style="margin-top:0;">身分驗證</h3>
+      <p id="modalDesc" style="color:#666; font-size:14px;">請輸入管理密碼</p>
       <input type="password" id="pwdInput" placeholder="請輸入密碼">
-      <div class="modal-btns">
-        <button id="btnCancel">取消</button>
-        <button id="btnConfirm">確認執行</button>
-      </div>
+      <div class="modal-btns"><button id="btnCancel">取消</button><button id="btnConfirm">確認</button></div>
     </div>
   </div>
 
 <script>
-/* JS 功能部分與原程式碼相同，僅保留完整性 */
-
-/* A) 頁面切換 */
+/* 頁面切換 */
 (function initNav(){
   const navButtons = document.querySelectorAll(".nav button");
   const pages = document.querySelectorAll(".page");
@@ -442,28 +316,15 @@
     navButtons.forEach(b => b.classList.remove("active"));
     document.querySelector(`.nav button[data-page="${id}"]`).classList.add("active");
     if(id === "deletePage") fetchOrders();
-    // 切換回填單時，自動捲動回頂部
-    window.scrollTo(0, 0);
   }
-  navButtons.forEach(btn => {
-    btn.addEventListener("click", () => showPage(btn.dataset.page));
-  });
+  navButtons.forEach(btn => btn.addEventListener("click", () => showPage(btn.dataset.page)));
 })();
 
-/* B) 訂餐查詢 */
-const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
-let queryRows = [];
-let queryHeader = [];
-let queryDataRows = [];
-
+/* 通用 CSV 解析 */
 function parseCSV(text) {
-  const result = [];
-  let cur = [];
-  let curVal = "";
-  let inQuotes = false;
+  const result = []; let cur = []; let curVal = ""; let inQuotes = false;
   for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const next = text[i+1];
+    const ch = text[i]; const next = text[i+1];
     if (inQuotes) {
       if (ch === '"' && next === '"') { curVal += '"'; i++; }
       else if (ch === '"') inQuotes = false;
@@ -479,198 +340,93 @@ function parseCSV(text) {
   return result;
 }
 
+/* 查詢功能 */
+const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
+let queryHeader = []; let queryDataRows = [];
 async function loadQueryCSV() {
   try {
-    const res = await fetch(queryCsvUrl);
-    const text = await res.text();
-    const parsed = parseCSV(text);
-    queryRows = parsed.filter(r => r.some(c => (c ?? "").trim() !== ""));
-    if (queryRows.length > 1) {
-      const titleInfo = queryRows[0];
-      document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
-      queryHeader = queryRows[1];
-      queryDataRows = queryRows.slice(2);
-      buildBuyerDropdown();
+    const res = await fetch(queryCsvUrl); const text = await res.text(); const parsed = parseCSV(text);
+    const rows = parsed.filter(r => r.some(c => (c ?? "").trim() !== ""));
+    if (rows.length > 1) {
+      document.getElementById("sheetTitle").innerText = (rows[0][2] || "訂單查詢") + " (" + (rows[0][0] || "") + ")";
+      queryHeader = rows[1]; queryDataRows = rows.slice(2); buildBuyerDropdown();
     }
-  } catch (e) { alert("讀取資料失敗"); }
+  } catch (e) { alert("讀取失敗"); }
 }
 
 function buildBuyerDropdown() {
   const buyerIdx = queryHeader.indexOf("購買人");
-  if (buyerIdx === -1) return;
   const set = new Set();
-  queryDataRows.forEach(r => {
-    const val = (r[buyerIdx] ?? "").trim();
-    if (val && val !== "購買人") set.add(val);
-  });
+  queryDataRows.forEach(r => { const val = (r[buyerIdx] ?? "").trim(); if (val && val !== "購買人") set.add(val); });
   const select = document.getElementById("buyerSelect");
-  select.innerHTML = `<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>`;
-  [...set].sort().forEach(v => {
-    const op = document.createElement("option");
-    op.value = v; op.textContent = v;
-    select.appendChild(op);
-  });
+  select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
+  [...set].sort().forEach(v => { const op = document.createElement("option"); op.value = v; op.textContent = v; select.appendChild(op); });
 }
 
 function renderNormalTable(buyer) {
-  const thead = document.querySelector("#resultTable thead");
   const tbody = document.querySelector("#resultTable tbody");
+  const thead = document.querySelector("#resultTable thead");
   thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>加飯</th><th>加料</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
-  const idxSub = queryHeader.indexOf("小計");
-  const idxBuyer = queryHeader.indexOf("購買人");
-  let filtered = buyer === "ALL" ? queryDataRows : queryDataRows.filter(r => (r[idxBuyer] ?? "").trim() === buyer);
-  if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="7">沒有查詢到資料</td></tr>`; return; }
-  let totalSum = 0;
+  const idx = { item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf("加飯"), add: queryHeader.indexOf("加料"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計"), user: queryHeader.indexOf("購買人") };
+  let filtered = buyer === "ALL" ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
+  let total = 0;
   filtered.forEach(r => {
-    const subTotal = Number(r[idxSub]) || 0;
-    totalSum += subTotal;
-    tbody.innerHTML += `<tr><td>${r[idxBuyer]||""}</td><td>${r[queryHeader.indexOf("項目")]||""}</td><td>${r[queryHeader.indexOf("單價")]||""}</td><td>${r[queryHeader.indexOf("加飯")]||""}</td><td>${r[queryHeader.indexOf("加料")]||""}</td><td>${r[queryHeader.indexOf("數量")]||""}</td><td>${subTotal}</td></tr>`;
+    const s = Number(r[idx.sub]) || 0; total += s;
+    tbody.innerHTML += `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${s}</td></tr>`;
   });
-  if (buyer !== "ALL") tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
+  if(buyer !== "ALL") tbody.innerHTML += `<tr class="total-row"><td colspan="6">合計</td><td>${total}</td></tr>`;
 }
 
-function renderList1() {
-  const idxBuyer = queryHeader.indexOf("購買人");
-  const idxSub = queryHeader.indexOf("小計");
-  const tbody = document.querySelector("#resultTable tbody");
-  document.querySelector("#resultTable thead").innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
-  tbody.innerHTML = "";
-  const summary = {};
-  queryDataRows.forEach(r => {
-    const name = (r[idxBuyer] ?? "").trim();
-    const amt = Number(r[idxSub]) || 0;
-    if (name) summary[name] = (summary[name] || 0) + amt;
-  });
-  let grandTotal = 0;
-  Object.keys(summary).sort().forEach(name => {
-    grandTotal += summary[name];
-    tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
-  });
-  tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
-}
-
-function renderList2() {
-  const idxItem = queryHeader.indexOf("項目");
-  const idxQty = queryHeader.indexOf("數量");
-  const tbody = document.querySelector("#resultTable tbody");
-  document.querySelector("#resultTable thead").innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
-  tbody.innerHTML = "";
-  const summary = {};
-  queryDataRows.forEach(r => {
-    const item = (r[idxItem] ?? "").trim();
-    const qty = Number(r[idxQty]) || 0;
-    if (item) summary[item] = (summary[item] || 0) + qty;
-  });
-  let grandQty = 0;
-  Object.keys(summary).sort().forEach(item => {
-    grandQty += summary[item];
-    tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
-  });
-  tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
-}
-
-document.getElementById("buyerSelect").addEventListener("change", (e) => {
-  document.getElementById("listSelect").value = "";
-  if (e.target.value) renderNormalTable(e.target.value);
-});
-document.getElementById("listSelect").addEventListener("change", (e) => {
-  document.getElementById("buyerSelect").value = "";
-  const opt = e.target.value;
-  if (opt === "list1") renderList1(); else if (opt === "list2") renderList2();
-});
+document.getElementById("buyerSelect").addEventListener("change", e => { if(e.target.value) renderNormalTable(e.target.value); });
 loadQueryCSV();
 
-/* C) 訂餐刪除 */
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
+/* 刪除功能 */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
 let targetRow = null;
-
 async function fetchOrders() {
-  showLoading(true, "更新清單中...");
+  showLoading(true, "載入中...");
   try {
-    const res = await fetch(`${CSV_URL}&t=${new Date().getTime()}`);
-    const text = await res.text();
-    const rows = parseCSV(text);
-    renderDeleteTable(rows);
-  } catch (err) { alert("讀取失敗"); } finally { showLoading(false); }
+    const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv&t="+Date.now());
+    const text = await res.text(); const rows = parseCSV(text);
+    const tbody = document.getElementById('tableBody');
+    if (rows.length < 2) { tbody.innerHTML = '<tr><td colspan="6">尚無訂單</td></tr>'; return; }
+    tbody.innerHTML = rows.slice(1).map((row, i) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]||""}</td><td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td></tr>`).join('');
+  } catch (e) { alert("讀取失敗"); } finally { showLoading(false); }
 }
 
-function renderDeleteTable(rows) {
-  const tbody = document.getElementById('tableBody');
-  if (!rows || rows.length < 2) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px; color:#999;">目前尚無訂單</td></tr>';
-    return;
-  }
-  const data = rows.slice(1);
-  tbody.innerHTML = data.map((row, i) => {
-    if (!row[1]) return '';
-    return `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td style="font-size:12px;">${row[4]||""}</td><td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td></tr>`;
-  }).join('');
-}
-
-function prepareDelete(row) {
-  targetRow = row;
-  document.getElementById('modalOverlay').style.display = 'flex';
-  document.getElementById('pwdInput').focus();
-}
-
+function prepareDelete(row) { targetRow = row; document.getElementById('modalOverlay').style.display = 'flex'; }
 document.getElementById('btnCancel').onclick = () => document.getElementById('modalOverlay').style.display = 'none';
 document.getElementById('btnConfirm').onclick = async () => {
-  const password = document.getElementById('pwdInput').value;
-  if (!password) return;
+  const pwd = document.getElementById('pwdInput').value; if(!pwd) return;
   document.getElementById('modalOverlay').style.display = 'none';
-  showLoading(true, "執行中...");
+  showLoading(true, "處理中...");
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ row: targetRow, password: password })
-    });
-    const result = await res.json();
-    alert(result.message);
-    if (result.status === 'success') fetchOrders();
-  } catch (err) { alert("連線失敗"); } finally { showLoading(false); }
+    const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ row: targetRow, password: pwd }) });
+    const result = await res.json(); alert(result.message); if(result.status === 'success') fetchOrders();
+  } catch(e) { alert("執行失敗"); } finally { showLoading(false); }
 };
 
-function showLoading(show, text) {
-  const el = document.getElementById('loadingOverlay');
-  el.style.display = show ? 'flex' : 'none';
-  if (text) document.getElementById('loadingText').innerText = text;
-}
+function showLoading(show, text) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; if(text) document.getElementById('loadingText').innerText = text; }
 
-/* D) 設定頁 */
-const scriptUrl = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
-function loadSettingsOptions() {
-  fetch(scriptUrl + "?action=getOptions")
-    .then(res => res.json())
-    .then(data => {
-      const select = document.getElementById('restaurant');
-      select.innerHTML = '';
-      data.forEach(item => {
-        if(item) { let opt = document.createElement('option'); opt.value = opt.innerHTML = item; select.appendChild(opt); }
-      });
-    });
+/* 設定功能 */
+const setUrl = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
+async function loadSettingsOptions() {
+  const res = await fetch(setUrl + "?action=getOptions");
+  const data = await res.json();
+  const select = document.getElementById('restaurant'); select.innerHTML = '';
+  data.forEach(item => { if(item) { let opt = document.createElement('option'); opt.value = opt.innerHTML = item; select.appendChild(opt); } });
 }
 loadSettingsOptions();
 
 function sendData() {
-  const btn = document.getElementById('btn');
-  const status = document.getElementById('status');
-  const date = document.getElementById('orderDate').value;
-  const store = document.getElementById('restaurant').value;
-  const acc = document.getElementById('acc').value;
-  const pwd = document.getElementById('pwd').value;
-  if (!acc || !pwd) { alert("請輸入帳密"); return; }
-  btn.disabled = true;
-  status.innerHTML = "處理中...";
-  fetch(`${scriptUrl}?action=submit&date=${encodeURIComponent(date)}&store=${encodeURIComponent(store)}&acc=${encodeURIComponent(acc)}&pwd=${encodeURIComponent(pwd)}`)
-    .then(res => res.text())
-    .then(text => {
-      status.innerHTML = text;
-      status.className = text.includes("成功") ? "success" : "error";
-      btn.disabled = false;
-    });
+  const btn = document.getElementById('btn'); const status = document.getElementById('status');
+  const d = document.getElementById('orderDate').value; const s = document.getElementById('restaurant').value;
+  const a = document.getElementById('acc').value; const p = document.getElementById('pwd').value;
+  if (!a || !p || !d || !s) { alert("請填寫完整"); return; }
+  btn.disabled = true; status.innerHTML = "處理中...";
+  fetch(`${setUrl}?action=submit&date=${d}&store=${s}&acc=${a}&pwd=${p}`)
+    .then(r => r.text()).then(t => { status.innerHTML = t; status.className = t.includes("成功") ? "success" : "error"; btn.disabled = false; });
 }
 </script>
 </body>
