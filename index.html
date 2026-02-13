@@ -1,242 +1,357 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
 
-<style>
-:root{
-  --primary:#4285f4;
-  --danger:#dc3545;
-  --bg:#f8f9fa;
-  --card:#fff;
-  --text:#333;
-  --muted:#666;
-  --border:#e5e7eb;
-}
+  <style>
+    :root {
+      --primary: #4285f4;
+      --danger: #dc3545;
+      --bg: #f8f9fa;
+      --card: #fff;
+      --text: #333;
+      --muted: #666;
+      --border: #e5e7eb;
+    }
 
-body{
-  margin:0;
-  font-family:"Microsoft JhengHei",sans-serif;
-  background:var(--bg);
-  color:var(--text);
-}
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
 
-/* 容器 */
-.container{
-  max-width:1100px;
-  margin:auto;
-  padding:18px 14px 60px;
-}
+    /* 內容區 */
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 18px 14px 60px;
+    }
 
-/* 選單 */
-.menu-bar{
-  background:white;
-  border:1px solid var(--border);
-  border-radius:16px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.05);
-  padding:14px;
-  margin-bottom:18px;
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-}
+    /* 🔥 改成一般頁面內的選單區（不再是橫幅框架） */
+    .menu-bar {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
 
-.brand{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  font-weight:800;
-  font-size:18px;
-}
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      font-size: 18px;
+    }
 
-.brand .dot{
-  width:10px;
-  height:10px;
-  border-radius:999px;
-  background:var(--primary);
-}
+    .brand .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--primary);
+      display: inline-block;
+    }
 
-.nav{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
+    .nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
-.nav button{
-  border:1px solid var(--border);
-  background:white;
-  padding:9px 12px;
-  border-radius:10px;
-  cursor:pointer;
-  font-weight:700;
-  font-size:14px;
-  transition:0.2s;
-}
+    .nav button {
+      border: 1px solid var(--border);
+      background: white;
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      transition: 0.2s;
+    }
 
-.nav button.active{
-  background:var(--primary);
-  border-color:var(--primary);
-  color:white;
-}
+    .nav button:hover {
+      border-color: #cfd6e3;
+      transform: translateY(-1px);
+    }
 
-.page{display:none;}
-.page.active{display:block;}
+    .nav button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
 
-.card{
-  background:white;
-  border:1px solid var(--border);
-  border-radius:16px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.05);
-  padding:18px;
-}
+    .page {
+      display: none;
+    }
+    .page.active {
+      display: block;
+    }
 
-/* ================================
-   🔵 填單 iframe 響應式設定
-================================ */
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 18px;
+    }
 
-/* 外框 (桌機預設無捲軸) */
-.form-wrapper{
-  width:100%;
-  border-radius:14px;
-  overflow:hidden;      /* 桌機不顯示外框捲軸 */
-}
+    /* 共用標題 */
+    .page-title {
+      margin: 0 0 14px;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+    }
 
-/* iframe 共用 */
-.form-frame{
-  width:100%;
-  border:0;
-  border-radius:14px;
-  background:#fff;
-}
+    .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
 
-/* 桌機 */
-@media (min-width:769px){
-  .form-wrapper{
-    height:850px;
-  }
-  .form-frame{
-    height:100%;
-    overflow:auto;   /* 只有內框捲軸 */
-  }
-}
+    /* 表單 iframe */
+    .form-frame {
+      width: 100%;
+      height: 850px;
+      border: 0;
+      border-radius: 14px;
+      background: #fff;
+    }
 
-/* 手機 */
-@media (max-width:768px){
-  .form-wrapper{
-    height:80vh;
-    overflow:auto;   /* 外框捲軸 */
-  }
-  .form-frame{
-    height:1000px;   /* 讓內框也出現捲軸 */
-    overflow:auto;
-  }
-}
+    /* 查詢頁樣式（保留你的風格） */
+    #queryPage body { background: transparent; }
+    #queryPage h2 { color: #333; text-align: center; margin: 0 0 14px; }
+    #queryPage .controls {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+    }
+    #queryPage label { font-weight: bold; margin-right: 5px; }
+    #queryPage select {
+      font-size: 16px;
+      padding: 8px;
+      width: 220px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
+    }
+    #queryPage table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+      margin-top: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    #queryPage th, #queryPage td {
+      border: 1px solid #e5e5e5;
+      padding: 10px;
+      text-align: center;
+      font-size: 15px;
+    }
+    #queryPage th { background-color: #f8f9fa; color: #555; }
+    #queryPage tr:nth-child(even) { background-color: #fcfcfc; }
+    #queryPage .total-row { font-weight: bold; background: #e9ecef !important; }
 
-/* ================================ */
-/* 以下全部原樣保留 */
-/* ================================ */
+    /* 刪除頁樣式（保留你的風格） */
+    #deletePage .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    #deletePage .header-btns { display: flex; gap: 8px; }
+    #deletePage .refresh-btn {
+      background: white;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    #deletePage .del-all-btn {
+      background: white;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    #deletePage .del-all-btn:hover { background: var(--danger); color: white; }
+    #deletePage .table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    #deletePage table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 14px; }
+    #deletePage th, #deletePage td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+    #deletePage th { background: #f8f9fa; color: #666; font-weight: bold; }
+    #deletePage tr:hover { background: #fcfcfc; }
+    #deletePage .btn-del {
+      background: #fff0f0;
+      color: var(--danger);
+      border: 1px solid #ffcccc;
+      padding: 6px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-weight: 800;
+    }
+    #deletePage .btn-del:hover { background: var(--danger); color: white; }
 
-#queryPage h2{text-align:center;margin:0 0 14px;}
-#queryPage .controls{
-  background:#fff;
-  padding:15px;
-  border-radius:10px;
-  box-shadow:0 2px 5px rgba(0,0,0,0.08);
-  margin-bottom:18px;
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px 18px;
-  align-items:center;
-}
-#queryPage select{
-  font-size:16px;
-  padding:8px;
-  width:220px;
-  border:1px solid #ddd;
-  border-radius:8px;
-}
-#queryPage table{
-  border-collapse:collapse;
-  width:100%;
-  background:#fff;
-  margin-top:15px;
-  border-radius:10px;
-}
-#queryPage th,#queryPage td{
-  border:1px solid #e5e5e5;
-  padding:10px;
-  text-align:center;
-  font-size:15px;
-}
-#queryPage th{background:#f8f9fa;}
-#queryPage .total-row{font-weight:bold;background:#e9ecef!important;}
+    /* 刪除頁載入遮罩 */
+    #loadingOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.95); z-index: 9999;
+      display: none;
+      justify-content: center; align-items: center; flex-direction: column;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* 刪除頁樣式原封不動 */
-#deletePage .table-container{
-  background:white;
-  border-radius:12px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.1);
-  overflow-x:auto;
-}
-#deletePage table{
-  width:100%;
-  border-collapse:collapse;
-  min-width:720px;
-  font-size:14px;
-}
-#deletePage th,#deletePage td{
-  padding:12px;
-  text-align:center;
-  border-bottom:1px solid #eee;
-}
+    /* 刪除頁密碼彈窗 */
+    #modalOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 3000;
+      display: none; justify-content: center; align-items: center;
+    }
+    #modalBox {
+      background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 340px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;
+      border: 1px solid #eee;
+    }
+    #pwdInput {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns button {
+      flex: 1; padding: 10px;
+      border: none; border-radius: 10px;
+      cursor: pointer; font-weight: bold;
+    }
+    #btnConfirm { background: var(--primary); color: #fff; }
+    #btnCancel { background: #eee; color: #333; }
 
-/* 設定頁原樣保留 */
-#settingsPage .settings-card{
-  background:white;
-  border-radius:16px;
-  box-shadow:0 4px 6px rgba(0,0,0,0.1);
-  padding:20px;
-  max-width:380px;
-  margin:auto;
-  border:1px solid #eee;
-}
+    /* 設定頁（保留你的卡片風格） */
+    #settingsPage .settings-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+      max-width: 380px;
+      margin: auto;
+      border: 1px solid #eee;
+    }
+    #settingsPage h3 { margin-top: 0; color: #333; text-align: center; }
+    #settingsPage .field { margin-bottom: 15px; }
+    #settingsPage label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #666;
+      font-weight: bold;
+    }
+    #settingsPage input, #settingsPage select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    #settingsPage button {
+      width: 100%;
+      padding: 12px;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+    #settingsPage button:hover { background: #357abd; }
+    #settingsPage button:disabled { background: #ccc; }
+    #settingsPage #status {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    #settingsPage .success { color: #28a745; font-weight: 800; }
+    #settingsPage .error { color: #dc3545; font-weight: 800; }
 
-</style>
+  </style>
 </head>
 
 <body>
 
-<div class="container">
+  <div class="container">
 
-<div class="menu-bar">
-  <div class="brand">
-    <span class="dot"></span>
-    <span>訂餐系統</span>
-  </div>
-  <div class="nav">
-    <button class="active" data-page="formPage">📝 填單</button>
-    <button data-page="queryPage">🔎 查詢</button>
-    <button data-page="deletePage">🗑️ 刪除</button>
-    <button data-page="settingsPage">⚙️ 設定</button>
-  </div>
-</div>
+    <!-- ✅ 變成頁面內選單，不再是橫幅框架 -->
+    <div class="menu-bar">
+      <div class="brand">
+        <span class="dot"></span>
+        <span>訂餐系統</span>
+      </div>
 
-<!-- 填單 -->
-<section id="formPage" class="page active">
-  <div class="card">
-    <div class="form-wrapper">
-      <iframe
-        class="form-frame"
-        src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header"
-        loading="lazy">
-      </iframe>
+      <div class="nav">
+        <button class="active" data-page="formPage">📝 填單</button>
+        <button data-page="queryPage">🔎 查詢</button>
+        <button data-page="deletePage">🗑️ 刪除</button>
+        <button data-page="settingsPage">⚙️ 設定</button>
+      </div>
     </div>
-  </div>
-</section>
+
+    <!-- 1) 填單 -->
+    <section id="formPage" class="page active">
+      <div class="card">
+
+        <iframe
+          class="form-frame"
+          src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header"
+          loading="lazy"
+        ></iframe>
+      </div>
+    </section>
 
     <!-- 2) 查詢 -->
     <section id="queryPage" class="page">
