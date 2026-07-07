@@ -125,10 +125,10 @@
       </div>
     </div>
 
-    <!-- 填單分頁 -->
+    <!-- 填單分頁 (首頁預設開啟) -->
     <section id="formPage" class="page active">
       <div class="card">
-        <iframe class="form-frame" src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header" loading="lazy">載入中…</iframe>
+        <iframe class="form-frame" src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header">載入中…</iframe>
       </div>
     </section>
 
@@ -136,8 +136,8 @@
     <section id="queryPage" class="page">
       <div class="card">
         <div class="header">
-          <h3 id="sheetTitle" style="margin:0;">訂單查詢系統 (載入中...)</h3>
-          <button class="refresh-btn" onclick="loadQueryCSV()">🔄 重新整理</button>
+          <h3 id="sheetTitle" style="margin:0;">訂單查詢系統</h3>
+          <button class="refresh-btn" onclick="loadQueryCSV(true)">🔄 重新整理</button>
         </div>
         <div class="controls">
           <div>
@@ -168,7 +168,7 @@
         <div class="header">
           <h3 style="margin:0;">📋 訂單管理清單</h3>
           <div class="header-btns">
-            <button class="refresh-btn" onclick="fetchOrders()">🔄 重新整理</button>
+            <button class="refresh-btn" onclick="fetchOrders(true)">🔄 重新整理</button>
             <button class="del-selected-btn" onclick="prepareDelete('selected')">🗑️ 刪除選取</button>
             <button class="del-all-btn" onclick="prepareDelete('all')">⚠️ 全部刪除</button>
           </div>
@@ -208,8 +208,7 @@
     </section>
   </div>
 
-  <!-- 工具元件 -->
-  <div id="loadingOverlay"><div class="spinner"></div><div id="loadingText" style="margin-top:15px; color:#555;">正在處理中...</div></div>
+  <div id="loadingOverlay"><div class="spinner"></div><div id="loadingText" style="margin-top:15px; color:#555;">正在讀取資料...</div></div>
   
   <div id="modalOverlay">
     <div id="modalBox">
@@ -225,7 +224,7 @@
 
 <script>
 /**
- * 1. 基礎設定與頁面切換
+ * 1. 基礎設定與延遲載入導覽
  */
 function setDefaultDate() {
   const today = new Date();
@@ -247,21 +246,26 @@ function setDefaultDate() {
       navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       
-      if(id === "deletePage") fetchOrders();
+      // 優化：切換分頁時才載入資料，避免首頁卡頓
+      if(id === "deletePage") fetchOrders(); 
       if(id === "queryPage") loadQueryCSV();
+      if(id === "settingsPage") loadSettingsOptions();
     });
   });
 })();
 
 /**
- * 2. 查詢分頁與統計功能
+ * 2. 查詢分頁邏輯 (優化讀取)
  */
 const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
 let queryHeader = [];
 let queryDataRows = [];
 
-async function loadQueryCSV() {
-  showLoading(true, "讀取資料中...");
+async function loadQueryCSV(force = false) {
+  // 如果已經讀取過且不是強制重新整理，則跳過載入
+  if (queryDataRows.length > 0 && !force) return;
+
+  showLoading(true, "讀取查詢資料中...");
   try {
     const res = await fetch(queryCsvUrl + "&t=" + Date.now());
     const text = await res.text();
@@ -274,9 +278,6 @@ async function loadQueryCSV() {
       queryHeader = rows[1]; 
       queryDataRows = rows.slice(2);
       buildBuyerDropdown();
-      // 清空表格
-      document.querySelector("#resultTable thead").innerHTML = "";
-      document.querySelector("#resultTable tbody").innerHTML = "";
     }
   } catch (e) {
     alert("讀取查詢資料失敗");
@@ -302,7 +303,6 @@ function buildBuyerDropdown() {
   });
 }
 
-// 顯示個人詳情或全部明細
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead");
   const tbody = document.querySelector("#resultTable tbody");
@@ -310,50 +310,33 @@ function renderNormalTable(buyer) {
   tbody.innerHTML = "";
 
   const idx = {
-    user: queryHeader.indexOf("購買人"),
-    item: queryHeader.indexOf("項目"),
-    price: queryHeader.indexOf("單價"),
-    rice: queryHeader.indexOf("加飯"),
-    add: queryHeader.indexOf("加料"),
-    qty: queryHeader.indexOf("數量"),
-    sub: queryHeader.indexOf("小計")
+    user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"),
+    rice: queryHeader.indexOf("加飯"), add: queryHeader.indexOf("加料"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計")
   };
 
   let filtered = (buyer === "ALL") ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
   let totalSum = 0;
-
   filtered.forEach(r => {
     const subTotal = Number(r[idx.sub]) || 0;
     totalSum += subTotal;
-    tbody.innerHTML += `
-      <tr>
-        <td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td>
-        <td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td>
-        <td>${subTotal}</td>
-      </tr>`;
+    tbody.innerHTML += `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
   });
-  
   if (buyer !== "ALL" && filtered.length > 0) {
     tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
   }
 }
 
-// 統計清單 1：購買人 / 金額總計
 function renderList1() {
-  const idxBuyer = queryHeader.indexOf("購買人");
-  const idxSub = queryHeader.indexOf("小計");
-  const thead = document.querySelector("#resultTable thead");
-  const tbody = document.querySelector("#resultTable tbody");
+  const idxBuyer = queryHeader.indexOf("購買人"), idxSub = queryHeader.indexOf("小計");
+  const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
   tbody.innerHTML = "";
-
   const summary = {};
   queryDataRows.forEach(r => {
     const name = (r[idxBuyer] ?? "").trim();
     const amt = Number(r[idxSub]) || 0;
     if (name) summary[name] = (summary[name] || 0) + amt;
   });
-
   let grandTotal = 0;
   Object.keys(summary).sort().forEach(name => {
     grandTotal += summary[name];
@@ -362,22 +345,17 @@ function renderList1() {
   tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
 }
 
-// 統計清單 2：項目 / 數量總計
 function renderList2() {
-  const idxItem = queryHeader.indexOf("項目");
-  const idxQty = queryHeader.indexOf("數量");
-  const thead = document.querySelector("#resultTable thead");
-  const tbody = document.querySelector("#resultTable tbody");
+  const idxItem = queryHeader.indexOf("項目"), idxQty = queryHeader.indexOf("數量");
+  const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
   tbody.innerHTML = "";
-
   const summary = {};
   queryDataRows.forEach(r => {
     const item = (r[idxItem] ?? "").trim();
     const qty = Number(r[idxQty]) || 0;
     if (item) summary[item] = (summary[item] || 0) + qty;
   });
-
   let grandQty = 0;
   Object.keys(summary).sort().forEach(item => {
     grandQty += summary[item];
@@ -386,14 +364,12 @@ function renderList2() {
   tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
 }
 
-// 查詢頁事件監聽
 document.getElementById("buyerSelect").addEventListener("change", (e) => {
-  document.getElementById("listSelect").value = ""; // 互鎖
+  document.getElementById("listSelect").value = "";
   if (e.target.value) renderNormalTable(e.target.value);
 });
-
 document.getElementById("listSelect").addEventListener("change", (e) => {
-  document.getElementById("buyerSelect").value = ""; // 互鎖
+  document.getElementById("buyerSelect").value = "";
   const opt = e.target.value;
   if (opt === "list1") renderList1();
   else if (opt === "list2") renderList2();
@@ -403,29 +379,26 @@ document.getElementById("listSelect").addEventListener("change", (e) => {
  * 3. 刪除分頁邏輯
  */
 const SCRIPT_URL_DEL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
+let hasFetchedOrders = false;
 let targetRowsToDelete = null;
 
-function toggleSelectAll(source) {
-  const checkboxes = document.querySelectorAll('.row-checkbox');
-  checkboxes.forEach(cb => cb.checked = source.checked);
-}
+async function fetchOrders(force = false) {
+  if (hasFetchedOrders && !force) return;
 
-async function fetchOrders() {
-  showLoading(true, "更新訂單中...");
-  document.getElementById('selectAll').checked = false;
+  showLoading(true, "讀取訂單清單...");
   try {
     const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv&t=" + Date.now());
     const text = await res.text();
     const rows = parseCSV(text);
     const tbody = document.getElementById('tableBody');
     if (rows.length < 2) { tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>'; return; }
-    tbody.innerHTML = rows.slice(1).map((row, i) => `
-      <tr>
-        <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
-        <td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]||""}</td>
-        <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
-      </tr>`).join('');
+    tbody.innerHTML = rows.slice(1).map((row, i) => `<tr><td><input type="checkbox" class="row-checkbox" value="${i+2}"></td><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]||""}</td><td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td></tr>`).join('');
+    hasFetchedOrders = true;
   } catch (e) { alert("無法獲取訂單清單"); } finally { showLoading(false); }
+}
+
+function toggleSelectAll(source) {
+  document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked);
 }
 
 function prepareDelete(type) {
@@ -451,52 +424,38 @@ document.getElementById('btnConfirm').onclick = async () => {
   document.getElementById('pwdInput').value = '';
   showLoading(true, "處理中...");
   try {
-    const res = await fetch(SCRIPT_URL_DEL, {
-      method: 'POST',
-      body: JSON.stringify({ row: targetRowsToDelete, password: pwd })
-    });
+    const res = await fetch(SCRIPT_URL_DEL, { method: 'POST', body: JSON.stringify({ row: targetRowsToDelete, password: pwd }) });
     const result = await res.json();
     alert(result.message);
-    if(result.status === 'success') fetchOrders();
+    if(result.status === 'success') fetchOrders(true);
   } catch(e) { alert("執行刪除出錯"); } finally { showLoading(false); }
 };
 
-document.getElementById('btnCancel').onclick = () => {
-  document.getElementById('modalOverlay').style.display = 'none';
-  document.getElementById('pwdInput').value = '';
-};
+document.getElementById('btnCancel').onclick = () => { document.getElementById('modalOverlay').style.display = 'none'; };
 
 /**
- * 4. 設定與通用工具
+ * 4. 設定與工具
  */
 const SCRIPT_URL_SET = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
+let hasLoadedSettings = false;
 
 async function loadSettingsOptions() {
+  if (hasLoadedSettings) return;
   try {
     const res = await fetch(SCRIPT_URL_SET + "?action=getOptions");
     const data = await res.json();
     const select = document.getElementById('restaurant');
     select.innerHTML = '';
-    data.forEach(item => {
-      if(item) {
-        let opt = document.createElement('option');
-        opt.value = opt.innerHTML = item;
-        select.appendChild(opt);
-      }
-    });
+    data.forEach(item => { if(item) { let opt = document.createElement('option'); opt.value = opt.innerHTML = item; select.appendChild(opt); } });
+    hasLoadedSettings = true;
   } catch(e) { console.error("店家選單載入失敗"); }
 }
 
 async function sendData() {
-  const btn = document.getElementById('btnSave');
-  const status = document.getElementById('status');
-  const d = document.getElementById('orderDate').value;
-  const s = document.getElementById('restaurant').value;
-  const a = document.getElementById('acc').value;
-  const p = document.getElementById('pwd').value;
+  const btn = document.getElementById('btnSave'), status = document.getElementById('status');
+  const d = document.getElementById('orderDate').value, s = document.getElementById('restaurant').value, a = document.getElementById('acc').value, p = document.getElementById('pwd').value;
   if (!a || !p || !d || !s) { alert("請填寫完整資訊"); return; }
-  btn.disabled = true;
-  status.innerHTML = "處理中...";
+  btn.disabled = true; status.innerHTML = "處理中...";
   try {
     const r = await fetch(`${SCRIPT_URL_SET}?action=submit&date=${d}&store=${s}&acc=${a}&pwd=${p}`);
     const t = await r.text();
@@ -508,7 +467,7 @@ async function sendData() {
 function parseCSV(text) {
   const result = []; let cur = []; let curVal = ""; let inQuotes = false;
   for (let i = 0; i < text.length; i++) {
-    const ch = text[i]; const next = text[i+1];
+    const ch = text[i], next = text[i+1];
     if (inQuotes) {
       if (ch === '"' && next === '"') { curVal += '"'; i++; }
       else if (ch === '"') inQuotes = false;
@@ -528,10 +487,6 @@ function showLoading(show, text) {
   document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
   if(text) document.getElementById('loadingText').innerText = text;
 }
-
-// 啟動載入
-loadSettingsOptions();
-loadQueryCSV();
 </script>
 </body>
 </html>
