@@ -202,7 +202,7 @@
     #settingsPage label { display: block; font-size: 14px; margin-bottom: 5px; color: #666; font-weight: bold; }
     #settingsPage input, #settingsPage select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
     #settingsPage button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-    #status { margin-top: 15px; text-align: center; font-weight: bold; font-size: 14px; }
+    #status { margin-top: 15px; text-align: center; font-weight: bold; }
   </style>
 </head>
 
@@ -279,7 +279,7 @@
 
     <section id="settingsPage" class="page">
       <div class="settings-card">
-        <h3>訂餐管理系統</h3>
+        <h3>訂餐日期與店家設定</h3>
         <div class="field">
           <label>訂餐日期</label>
           <input type="date" id="orderDate">
@@ -289,8 +289,11 @@
           <select id="restaurant"><option>載入中...</option></select>
         </div>
         <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
-        <!-- 1. 修改設定分頁：移除帳號欄位 -->
-        <div class="field"><label>管理密碼</label><input type="password" id="pwd" placeholder="請輸入管理密碼"></div>
+        <!-- 已移除帳號欄位 -->
+        <div class="field">
+          <label>管理密碼</label>
+          <input type="password" id="pwd" placeholder="請輸入設定密碼">
+        </div>
         <button onclick="sendData()" id="btn">送出設定</button>
         <div id="status"></div>
       </div>
@@ -308,7 +311,6 @@
   </div>
 
 <script>
-/* 日期預設值 */
 function setDefaultDate() {
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -317,7 +319,6 @@ function setDefaultDate() {
   document.getElementById('orderDate').value = `${yyyy}-${mm}-${dd}`;
 }
 
-/* 頁面切換 */
 (function initNav(){
   setDefaultDate();
   const navButtons = document.querySelectorAll(".nav button");
@@ -332,7 +333,6 @@ function setDefaultDate() {
   navButtons.forEach(btn => btn.addEventListener("click", () => showPage(btn.dataset.page)));
 })();
 
-/* CSV 解析與查詢功能 (保持不變) */
 function parseCSV(text) {
   const result = []; let cur = []; let curVal = ""; let inQuotes = false;
   for (let i = 0; i < text.length; i++) {
@@ -364,6 +364,7 @@ async function loadQueryCSV() {
     }
   } catch (e) { console.error("讀取查詢CSV失敗"); }
 }
+
 function buildBuyerDropdown() {
   const buyerIdx = queryHeader.indexOf("購買人");
   const set = new Set();
@@ -372,6 +373,7 @@ function buildBuyerDropdown() {
   select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
   [...set].sort().forEach(v => { const op = document.createElement("option"); op.value = v; op.textContent = v; select.appendChild(op); });
 }
+
 function renderNormalTable(buyer) {
   const tbody = document.querySelector("#resultTable tbody");
   const thead = document.querySelector("#resultTable thead");
@@ -386,16 +388,20 @@ function renderNormalTable(buyer) {
   });
   if(buyer !== "ALL") tbody.innerHTML += `<tr class="total-row"><td colspan="6">合計</td><td>${total}</td></tr>`;
 }
+
 document.getElementById("buyerSelect").addEventListener("change", e => { if(e.target.value) renderNormalTable(e.target.value); });
 loadQueryCSV();
 
-/* 刪除功能 (保持不變) */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec";
 let targetRow = null;
+
 function toggleSelectAll(source) {
   const checkboxes = document.getElementsByClassName('row-checkbox');
-  for (let i = 0; i < checkboxes.length; i++) checkboxes[i].checked = source.checked;
+  for (let i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = source.checked;
+  }
 }
+
 async function fetchOrders() {
   showLoading(true, "載入中...");
   document.getElementById('selectAll').checked = false;
@@ -404,9 +410,19 @@ async function fetchOrders() {
     const text = await res.text(); const rows = parseCSV(text);
     const tbody = document.getElementById('tableBody');
     if (rows.length < 2) { tbody.innerHTML = '<tr><td colspan="7">尚無訂單</td></tr>'; return; }
-    tbody.innerHTML = rows.slice(1).map((row, i) => `<tr><td><input type="checkbox" class="row-checkbox" value="${i+2}"></td><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]||""}</td><td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td></tr>`).join('');
+    tbody.innerHTML = rows.slice(1).map((row, i) => `
+      <tr>
+        <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
+        <td>${row[0]}</td>
+        <td>${row[1]}</td>
+        <td>${row[2]}</td>
+        <td>${row[3]}</td>
+        <td>${row[4]||""}</td>
+        <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
+      </tr>`).join('');
   } catch (e) { alert("讀取失敗"); } finally { showLoading(false); }
 }
+
 function prepareDelete(type) {
   if (type === 'selected') {
     const checked = document.querySelectorAll('.row-checkbox:checked');
@@ -422,20 +438,32 @@ function prepareDelete(type) {
   }
   document.getElementById('modalOverlay').style.display = 'flex';
 }
-document.getElementById('btnCancel').onclick = () => { document.getElementById('modalOverlay').style.display = 'none'; document.getElementById('pwdInput').value = ''; }
+
+document.getElementById('btnCancel').onclick = () => {
+  document.getElementById('modalOverlay').style.display = 'none';
+  document.getElementById('pwdInput').value = '';
+}
+
 document.getElementById('btnConfirm').onclick = async () => {
-  const pwd = document.getElementById('pwdInput').value; if(!pwd) return;
+  const pwd = document.getElementById('pwdInput').value; 
+  if(!pwd) { alert("請輸入密碼"); return; }
   document.getElementById('modalOverlay').style.display = 'none';
   document.getElementById('pwdInput').value = '';
   showLoading(true, "處理中...");
   try {
     const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ row: targetRow, password: pwd }) });
-    const result = await res.json(); alert(result.message); if(result.status === 'success') fetchOrders();
+    const result = await res.json(); 
+    alert(result.message); 
+    if(result.status === 'success') fetchOrders();
   } catch(e) { alert("執行失敗"); } finally { showLoading(false); }
 };
-function showLoading(show, text) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; if(text) document.getElementById('loadingText').innerText = text; }
 
-/* 2. 修改設定功能：移除帳號驗證，強化錯誤顯示 */
+function showLoading(show, text) { 
+  document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; 
+  if(text) document.getElementById('loadingText').innerText = text; 
+}
+
+/* 4. 修改設定功能：僅使用密碼驗證 */
 const setUrl = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
 async function loadSettingsOptions() {
   try {
@@ -452,34 +480,30 @@ function sendData() {
   const status = document.getElementById('status');
   const d = document.getElementById('orderDate').value; 
   const s = document.getElementById('restaurant').value;
-  const p = document.getElementById('pwd').value; // 取得密碼
+  const p = document.getElementById('pwd').value; // 只獲取密碼
 
-  // 修改驗證：不檢查帳號 (a)
-  if (!p || !d || !s) { 
-    alert("請填寫日期、店家並輸入管理密碼"); 
-    return; 
-  }
-
+  if (!p || !d || !s) { alert("請填寫完整（日期、店家及密碼）"); return; }
+  
   btn.disabled = true; 
-  status.innerHTML = "正在送出設定...";
+  status.innerHTML = "驗證並處理中...";
   status.style.color = "#666";
 
-  // 修改傳送路徑：移除 acc 參數
+  // 修改後的 API 請求路徑，移除了 acc
   fetch(`${setUrl}?action=submit&date=${d}&store=${s}&pwd=${p}`)
     .then(r => r.text())
     .then(t => { 
       status.innerHTML = t; 
-      // 3. 判斷回傳內容：如果不包含「成功」，顯示為紅色錯誤
+      // 根據回傳文字判斷顏色，若包含成功則綠色，否則（如失敗、錯誤）則紅色
       if (t.includes("成功")) {
         status.style.color = "green";
-        document.getElementById('pwd').value = ""; // 成功後清空密碼
+        document.getElementById('pwd').value = ""; // 成功後清空密碼欄位
       } else {
         status.style.color = "red";
       }
       btn.disabled = false; 
     })
     .catch(err => {
-      status.innerHTML = "連線發生錯誤，請稍後再試";
+      status.innerHTML = "網路錯誤或連線失敗";
       status.style.color = "red";
       btn.disabled = false;
     });
