@@ -14,6 +14,8 @@
       --text: #333;
       --muted: #666;
       --border: #e5e7eb;
+      --notice-bg: #fffbe6;
+      --notice-border: #ffe58f;
     }
 
     body {
@@ -21,6 +23,18 @@
       font-family: "Microsoft JhengHei", sans-serif;
       background: var(--bg);
       color: var(--text);
+    }
+
+    /* LINE 專用導引區塊 */
+    #lineWarning {
+      display: none;
+      background: #fff3cd;
+      color: #856404;
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+      border-bottom: 2px solid #ffeeba;
+      font-weight: bold;
     }
 
     .container {
@@ -65,8 +79,32 @@
     .page.active { display: block; }
     .card { background: white; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 18px; }
 
+    /* 表單外部開啟提示 */
+    .form-notice {
+      background: #e1f5fe;
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+      color: #01579b;
+      border-radius: 12px 12px 0 0;
+      border-bottom: 1px solid #b3e5fc;
+    }
+    .external-btn {
+      display: inline-block;
+      background: var(--primary);
+      color: white !important;
+      padding: 6px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      margin-top: 5px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
     /* 填單框架 */
-    .form-frame { width: 100%; height: 1800px; border: none; border-radius: 12px; }
+    .form-frame { width: 100%; height: 1800px; border: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
     @media (max-width: 768px) { .form-frame { height: 2500px; } }
 
     /* 頁面標題與按鈕佈局 */
@@ -114,6 +152,11 @@
 
 <body>
 
+  <!-- LINE 警告欄 -->
+  <div id="lineWarning">
+    ⚠️ 偵測到您正在使用 LINE 開啟。為了正常登入 Google，建議點擊下方「用瀏覽器開啟」。
+  </div>
+
   <div class="container">
     <div class="menu-bar">
       <div class="brand"><span class="dot"></span><span>訂餐系統</span></div>
@@ -125,10 +168,14 @@
       </div>
     </div>
 
-    <!-- 填單分頁 (首頁預設開啟) -->
+    <!-- 填單分頁 -->
     <section id="formPage" class="page active">
-      <div class="card">
-        <iframe class="form-frame" src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header">載入中…</iframe>
+      <div class="card" style="padding:0;">
+        <div class="form-notice">
+          <b>無法登入 Google 帳號？</b><br>
+          <button class="external-btn" onclick="handleExternalLink()">🚀 使用系統瀏覽器開啟</button>
+        </div>
+        <iframe class="form-frame" src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header" loading="lazy">載入中…</iframe>
       </div>
     </section>
 
@@ -224,6 +271,30 @@
 
 <script>
 /**
+ * 外部瀏覽器跳轉邏輯
+ */
+const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
+
+function handleExternalLink() {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+        // Android 強制跳轉：使用 intent 協定呼叫 Chrome
+        const intentUrl = `intent://${rawFormUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+        window.location.href = intentUrl;
+    } else {
+        // iPhone 或其他：加上參數嘗試跳脫 LINE 內建環境
+        const externalUrl = rawFormUrl + (rawFormUrl.includes('?') ? '&' : '?') + "openExternalBrowser=1";
+        window.location.href = externalUrl;
+    }
+}
+
+function checkBrowser() {
+    if (/Line/i.test(navigator.userAgent)) {
+        document.getElementById('lineWarning').style.display = 'block';
+    }
+}
+
+/**
  * 1. 基礎設定與延遲載入導覽
  */
 function setDefaultDate() {
@@ -236,6 +307,7 @@ function setDefaultDate() {
 
 (function initNav(){
   setDefaultDate();
+  checkBrowser();
   const navButtons = document.querySelectorAll(".nav button");
   const pages = document.querySelectorAll(".page");
   navButtons.forEach(btn => {
@@ -246,7 +318,6 @@ function setDefaultDate() {
       navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       
-      // 優化：切換分頁時才載入資料，避免首頁卡頓
       if(id === "deletePage") fetchOrders(); 
       if(id === "queryPage") loadQueryCSV();
       if(id === "settingsPage") loadSettingsOptions();
@@ -255,23 +326,20 @@ function setDefaultDate() {
 })();
 
 /**
- * 2. 查詢分頁邏輯 (優化讀取)
+ * 2. 查詢分頁邏輯
  */
 const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
 let queryHeader = [];
 let queryDataRows = [];
 
 async function loadQueryCSV(force = false) {
-  // 如果已經讀取過且不是強制重新整理，則跳過載入
   if (queryDataRows.length > 0 && !force) return;
-
   showLoading(true, "讀取查詢資料中...");
   try {
     const res = await fetch(queryCsvUrl + "&t=" + Date.now());
     const text = await res.text();
     const parsed = parseCSV(text);
     const rows = parsed.filter(r => r.some(c => (c ?? "").trim() !== ""));
-
     if (rows.length > 1) {
       const titleInfo = rows[0];
       document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
@@ -279,11 +347,7 @@ async function loadQueryCSV(force = false) {
       queryDataRows = rows.slice(2);
       buildBuyerDropdown();
     }
-  } catch (e) {
-    alert("讀取查詢資料失敗");
-  } finally {
-    showLoading(false);
-  }
+  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
 }
 
 function buildBuyerDropdown() {
@@ -306,14 +370,12 @@ function buildBuyerDropdown() {
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead");
   const tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>加飯</th><th>加料</th><th>數量</th><th>小計</th></tr>`;
+  thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>加點</th><th>備註</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
-
   const idx = {
     user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"),
-    rice: queryHeader.indexOf("加飯"), add: queryHeader.indexOf("加料"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計")
+    rice: queryHeader.indexOf("加點"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計")
   };
-
   let filtered = (buyer === "ALL") ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
   let totalSum = 0;
   filtered.forEach(r => {
@@ -384,7 +446,6 @@ let targetRowsToDelete = null;
 
 async function fetchOrders(force = false) {
   if (hasFetchedOrders && !force) return;
-
   showLoading(true, "讀取訂單清單...");
   try {
     const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv&t=" + Date.now());
