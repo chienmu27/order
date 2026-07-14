@@ -6,19 +6,8 @@
   <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
   
   <style>
-    /* 此處保留您原本的所有 CSS 樣式，不做更動以維持原本格式 */
-    :root {
-      --primary: #4285f4;
-      --danger: #dc3545;
-      --bg: #f8f9fa;
-      --card: #fff;
-      --text: #333;
-      --muted: #666;
-      --border: #e5e7eb;
-      --notice-bg: #fffbe6;
-      --notice-border: #ffe58f;
-    }
-
+    /* CSS 部分保持原樣，確保格式一致 */
+    :root { --primary: #4285f4; --danger: #dc3545; --bg: #f8f9fa; --card: #fff; --text: #333; --muted: #666; --border: #e5e7eb; --notice-bg: #fffbe6; --notice-border: #ffe58f; }
     body { margin: 0; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); }
     #lineWarning { display: none; background: #fff3cd; color: #856404; padding: 12px; text-align: center; font-size: 14px; border-bottom: 2px solid #ffeeba; font-weight: bold; }
     .container { max-width: 1100px; margin: auto; padding: 18px 14px 60px; }
@@ -74,9 +63,7 @@
 
 <body>
 
-  <div id="lineWarning">
-    ⚠️ 偵測到您正在使用 LINE 開啟。為了正常登入 Google，建議點擊下方「用瀏覽器開啟」。
-  </div>
+  <div id="lineWarning">⚠️ 偵測到您正在使用 LINE 開啟。為了正常登入 Google，建議點擊下方「用瀏覽器開啟」。</div>
 
   <div class="container">
     <div class="menu-bar">
@@ -105,7 +92,7 @@
       <div class="card">
         <div class="header">
           <h3 id="sheetTitle" style="margin:0;">訂單查詢系統</h3>
-          <button class="refresh-btn" onclick="loadQueryCSV(true)">🔄 重新整理</button>
+          <button class="refresh-btn" onclick="loadQueryData(true)">🔄 重新整理</button>
         </div>
         <div class="controls">
           <div>
@@ -159,14 +146,8 @@
     <section id="settingsPage" class="page">
       <div class="settings-card">
         <h3>訂餐管理系統</h3>
-        <div class="field">
-          <label>訂餐日期</label>
-          <input type="date" id="orderDate">
-        </div>
-        <div class="field">
-          <label>店家選單</label>
-          <select id="restaurant"><option>載入中...</option></select>
-        </div>
+        <div class="field"><label>訂餐日期</label><input type="date" id="orderDate"></div>
+        <div class="field"><label>店家選單</label><select id="restaurant"><option>載入中...</option></select></div>
         <div class="field">
           <label>表單接受回應狀態：<span id="formStatusLabel" style="color:var(--primary);">載入中...</span></label>
           <div class="status-btns">
@@ -200,29 +181,26 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec"; 
 const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
 
+// 狀態變數
+let queryHeader = [];
+let queryDataRows = [];
+let statusToChange = null;
+let targetRowsToDelete = null;
+
 function handleExternalLink() {
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (isAndroid) {
-        const intentUrl = `intent://${rawFormUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-        window.location.href = intentUrl;
-    } else {
-        const externalUrl = rawFormUrl + (rawFormUrl.includes('?') ? '&' : '?') + "openExternalBrowser=1";
-        window.location.href = externalUrl;
-    }
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (isAndroid) {
+    window.location.href = `intent://${rawFormUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+  } else {
+    window.location.href = rawFormUrl + "?openExternalBrowser=1";
+  }
 }
 
-function checkBrowser() {
-    if (/Line/i.test(navigator.userAgent)) {
-        document.getElementById('lineWarning').style.display = 'block';
-    }
-}
+function checkBrowser() { if (/Line/i.test(navigator.userAgent)) document.getElementById('lineWarning').style.display = 'block'; }
 
 function setDefaultDate() {
   const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  document.getElementById('orderDate').value = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('orderDate').value = today.toISOString().split('T')[0];
 }
 
 (function initNav(){
@@ -238,36 +216,37 @@ function setDefaultDate() {
       navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       if(id === "deletePage") fetchOrders(true);
-      if(id === "queryPage") loadQueryCSV(true);
+      if(id === "queryPage") loadQueryData(true);
       if(id === "settingsPage") { loadSettingsOptions(); fetchFormStatus(); }
     });
   });
 })();
 
-async function fetchFormStatus() {
-  const label = document.getElementById('formStatusLabel');
-  label.innerText = "查詢中...";
+// 優化：直接從 GAS 獲取即時查詢資料 (取代原本延遲的 CSV)
+async function loadQueryData(force = false) {
+  if (queryDataRows.length > 0 && !force) return;
+  showLoading(true, "讀取最新查詢資料...");
   try {
-    const res = await fetch(`${GAS_URL}?action=getFormStatus`);
-    const data = await res.json();
-    if (data.status === "success") {
-      label.innerText = data.accepting ? "🟢 接受回應中" : "🔴 已停止回應";
-      label.style.color = data.accepting ? "#1e7e34" : "#dc3545";
+    // 呼叫 GAS 並指定獲取「訂單」或「查詢」相關的工作表（此處假設原 CSV 資料源自名稱為 "訂單" 的 Sheet）
+    const res = await fetch(`${GAS_URL}?action=getOrders&sheetName=訂餐&t=${Date.now()}`);
+    const result = await res.json();
+    if (result.status === "success") {
+      const rows = result.data;
+      if (rows.length > 1) {
+        // 第一列為標題資訊，第二列為欄位名
+        const titleInfo = rows[0];
+        document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
+        queryHeader = rows[1];
+        queryDataRows = rows.slice(2);
+        buildBuyerDropdown();
+        // 清空現有表格內容
+        document.querySelector("#resultTable thead").innerHTML = "";
+        document.querySelector("#resultTable tbody").innerHTML = "";
+      }
     }
-  } catch (e) { label.innerText = "連線出錯"; }
+  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
 }
 
-let statusToChange = null;
-function prepareStatusChange(status) {
-    statusToChange = status;
-    const text = status ? "開啟接受回應" : "關閉接受回應";
-    document.getElementById('modalDesc').innerText = `確定要將表單設定為「${text}」嗎？請輸入密碼。`;
-    document.getElementById('modalOverlay').style.display = 'flex';
-}
-
-/**
- * 刪除分頁獲取訂單
- */
 async function fetchOrders(force = false) {
   showLoading(true, "讀取即時訂單清單...");
   document.getElementById('selectAll').checked = false;
@@ -275,7 +254,6 @@ async function fetchOrders(force = false) {
     const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
     const data = await res.json();
     const tbody = document.getElementById('tableBody');
-    
     if (data.status === "success") {
       const rows = data.data;
       if (rows.length < 2) {
@@ -292,83 +270,28 @@ async function fetchOrders(force = false) {
   } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
 }
 
-/**
- * 修改 0714：查詢功能優化
- * 1. 執行時先清空舊暫存 queryDataRows
- * 2. 改向 GAS 請求即時資料 (不再依賴 CSV)，大幅提升速度與準確度
- */
-let queryHeader = [];
-let queryDataRows = [];
-
-async function loadQueryCSV(force = false) {
-  // 1. 若強制更新，先清空舊資料暫存
-  if (force) {
-    queryDataRows = [];
-    queryHeader = [];
-    document.querySelector("#resultTable tbody").innerHTML = "";
-    document.getElementById("buyerSelect").innerHTML = '<option value="">--請選擇--</option>';
-  } else if (queryDataRows.length > 0) {
-    return;
-  }
-
-  showLoading(true, "讀取即時查詢資料...");
-  try {
-    // 2. 改從 GAS 端 action=getQueryData 抓取，解決 CSV 延遲問題
-    const res = await fetch(`${GAS_URL}?action=getQueryData&t=${Date.now()}`);
-    const result = await res.json();
-    
-    if (result.status === "success") {
-      const rows = result.data.filter(r => r.some(c => (c ?? "").toString().trim() !== ""));
-      if (rows.length > 0) {
-        // 假設原 CSV 的標題資訊在第一列，真正的 Header 在第二列
-        // 這裡維持原程式邏輯：rows[0] 是標題 info, rows[1] 是欄位名, rows[2] 以後是資料
-        const titleInfo = rows[0];
-        document.getElementById("sheetTitle").innerText = (titleInfo[1] || "訂單查詢系統");
-        queryHeader = rows[1]; 
-        queryDataRows = rows.slice(2); 
-        buildBuyerDropdown();
-      }
-    }
-  } catch (e) { 
-    console.error(e);
-    alert("讀取查詢資料失敗，請確認後端權限設定"); 
-  } finally { 
-    showLoading(false); 
-  }
-}
-
+// 以下保留查詢渲染邏輯
 function buildBuyerDropdown() {
   const buyerIdx = queryHeader.indexOf("購買人");
   if (buyerIdx === -1) return;
   const set = new Set();
-  queryDataRows.forEach(r => {
-    const val = (r[buyerIdx] ?? "").toString().trim();
-    if (val && val !== "購買人") set.add(val);
-  });
+  queryDataRows.forEach(r => { const val = (r[buyerIdx] ?? "").trim(); if (val) set.add(val); });
   const select = document.getElementById("buyerSelect");
   select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
   [...set].sort().forEach(v => {
-    const op = document.createElement("option");
-    op.value = v; op.textContent = v;
-    select.appendChild(op);
+    const op = document.createElement("option"); op.value = v; op.textContent = v; select.appendChild(op);
   });
 }
 
-// --- 以下維持原有的表格渲染與統計邏輯 ---
 function renderNormalTable(buyer) {
-  const thead = document.querySelector("#resultTable thead");
-  const tbody = document.querySelector("#resultTable tbody");
+  const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>加點</th><th>備註</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
-  const idx = {
-    user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"),
-    rice: queryHeader.indexOf("加點"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計")
-  };
-  let filtered = (buyer === "ALL") ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").toString().trim() === buyer);
+  const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf("加點"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
+  let filtered = (buyer === "ALL") ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
   let totalSum = 0;
   filtered.forEach(r => {
-    const subTotal = Number(r[idx.sub]) || 0;
-    totalSum += subTotal;
+    const subTotal = Number(r[idx.sub]) || 0; totalSum += subTotal;
     tbody.innerHTML += `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
   });
   if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
@@ -381,14 +304,12 @@ function renderList1() {
   tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
-    const name = (r[idxBuyer] ?? "").toString().trim();
-    const amt = Number(r[idxSub]) || 0;
+    const name = (r[idxBuyer] ?? "").trim(); const amt = Number(r[idxSub]) || 0;
     if (name) summary[name] = (summary[name] || 0) + amt;
   });
   let grandTotal = 0;
   Object.keys(summary).sort().forEach(name => {
-    grandTotal += summary[name];
-    tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
+    grandTotal += summary[name]; tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
   });
   tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
 }
@@ -400,14 +321,12 @@ function renderList2() {
   tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
-    const item = (r[idxItem] ?? "").toString().trim();
-    const qty = Number(r[idxQty]) || 0;
+    const item = (r[idxItem] ?? "").trim(); const qty = Number(r[idxQty]) || 0;
     if (item) summary[item] = (summary[item] || 0) + qty;
   });
   let grandQty = 0;
   Object.keys(summary).sort().forEach(item => {
-    grandQty += summary[item];
-    tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
+    grandQty += summary[item]; tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
   });
   tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
 }
@@ -418,16 +337,29 @@ document.getElementById("buyerSelect").addEventListener("change", (e) => {
 });
 document.getElementById("listSelect").addEventListener("change", (e) => {
   document.getElementById("buyerSelect").value = "";
-  const opt = e.target.value;
-  if (opt === "list1") renderList1();
-  else if (opt === "list2") renderList2();
+  if (e.target.value === "list1") renderList1(); else if (e.target.value === "list2") renderList2();
 });
 
-let targetRowsToDelete = null;
-
-function toggleSelectAll(source) {
-  document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked);
+// 管理功能：表單狀態、刪除邏輯
+async function fetchFormStatus() {
+  const label = document.getElementById('formStatusLabel'); label.innerText = "查詢中...";
+  try {
+    const res = await fetch(`${GAS_URL}?action=getFormStatus`);
+    const data = await res.json();
+    if (data.status === "success") {
+      label.innerText = data.accepting ? "🟢 接受回應中" : "🔴 已停止回應";
+      label.style.color = data.accepting ? "#1e7e34" : "#dc3545";
+    }
+  } catch (e) { label.innerText = "連線出錯"; }
 }
+
+function prepareStatusChange(status) {
+  statusToChange = status;
+  document.getElementById('modalDesc').innerText = `確定要設定為「${status ? "開啟" : "關閉"}回應」嗎？請輸入密碼。`;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function toggleSelectAll(source) { document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked); }
 
 function prepareDelete(type) {
   statusToChange = null;
@@ -453,28 +385,22 @@ document.getElementById('btnConfirm').onclick = async () => {
   document.getElementById('pwdInput').value = '';
   showLoading(true, "處理中...");
   try {
-    let payload = {};
-    if (statusToChange !== null) {
-        payload = { action: "setFormStatus", status: statusToChange, password: pwd };
-    } else {
-        payload = { row: targetRowsToDelete, password: pwd };
-    }
+    let payload = { password: pwd };
+    if (statusToChange !== null) { payload.action = "setFormStatus"; payload.status = statusToChange; }
+    else { payload.row = targetRowsToDelete; }
     const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
     const result = await res.json();
     alert(result.message);
     if(result.status === 'success') {
-        if (statusToChange !== null) fetchFormStatus();
-        else fetchOrders(true);
+      if (statusToChange !== null) fetchFormStatus();
+      else fetchOrders(true);
     }
   } catch(e) { alert("執行失敗"); } finally { showLoading(false); statusToChange = null; }
 };
 
-document.getElementById('btnCancel').onclick = () => { 
-    document.getElementById('modalOverlay').style.display = 'none'; 
-    statusToChange = null;
-};
+document.getElementById('btnCancel').onclick = () => { document.getElementById('modalOverlay').style.display = 'none'; statusToChange = null; };
 
-// 保持原本設定功能
+// 設定分頁店家載入
 const SCRIPT_URL_SET = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
 async function loadSettingsOptions() {
   try {
@@ -494,8 +420,7 @@ async function sendData() {
   try {
     const r = await fetch(`${SCRIPT_URL_SET}?action=submit&date=${d}&store=${s}&acc=${a}&pwd=${p}`);
     const t = await r.text();
-    status.innerHTML = t;
-    status.style.color = t.includes("成功") ? "green" : "red";
+    status.innerHTML = t; status.style.color = t.includes("成功") ? "green" : "red";
   } catch(e) { status.innerHTML = "連線失敗"; } finally { btn.disabled = false; }
 }
 
