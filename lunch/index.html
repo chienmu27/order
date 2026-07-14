@@ -160,7 +160,7 @@
 <body>
 
   <div id="lineWarning">
-    ⚠️ 偵測到您正在使用 LINE 開啟。為了正常登入 Google，建議點擊下方「用瀏覽器開啟」。
+    ⚠️ 偵測到您正在使用 LINE 開啟。為了正常登入 Google 帳號，建議點擊下方「用瀏覽器開啟」。
   </div>
 
   <div class="container">
@@ -190,7 +190,7 @@
       <div class="card">
         <div class="header">
           <h3 id="sheetTitle" style="margin:0;">訂單查詢系統</h3>
-          <button class="refresh-btn" onclick="loadQueryCSV(true)">🔄 重新整理</button>
+          <button class="refresh-btn" onclick="loadQueryData(true)">🔄 重新整理</button>
         </div>
         <div class="controls">
           <div>
@@ -285,6 +285,10 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec"; 
 const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
 
+// 暫存查詢資料用的全域變數
+let queryHeader = [];
+let queryDataRows = [];
+
 function handleExternalLink() {
     const isAndroid = /Android/i.test(navigator.userAgent);
     if (isAndroid) {
@@ -322,83 +326,53 @@ function setDefaultDate() {
       document.getElementById(id).classList.add("active");
       navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      if(id === "deletePage") fetchOrders(true); // 每次點擊刪除分頁都強制即時抓取
-      if(id === "queryPage") loadQueryCSV(true);
+      if(id === "deletePage") fetchOrders(true);
+      if(id === "queryPage") loadQueryData(true); // 切換分頁即自動重新抓取
       if(id === "settingsPage") { loadSettingsOptions(); fetchFormStatus(); }
     });
   });
 })();
 
-async function fetchFormStatus() {
-  const label = document.getElementById('formStatusLabel');
-  label.innerText = "查詢中...";
-  try {
-    const res = await fetch(`${GAS_URL}?action=getFormStatus`);
-    const data = await res.json();
-    if (data.status === "success") {
-      label.innerText = data.accepting ? "🟢 接受回應中" : "🔴 已停止回應";
-      label.style.color = data.accepting ? "#1e7e34" : "#dc3545";
-    }
-  } catch (e) { label.innerText = "連線出錯"; }
-}
-
-let statusToChange = null;
-function prepareStatusChange(status) {
-    statusToChange = status;
-    const text = status ? "開啟接受回應" : "關閉接受回應";
-    document.getElementById('modalDesc').innerText = `確定要將表單設定為「${text}」嗎？請輸入密碼。`;
-    document.getElementById('modalOverlay').style.display = 'flex';
-}
-
 /**
- * 修改：獲取訂單清單
- * 不再抓取 CSV (因 CSV 有快取延遲)，改由 GAS 直接獲取 JSON 資料
+ * 修改 0714：獲取查詢資料
+ * 優點：清除暫存、不使用 CSV 避免快取延遲、讀取速度更快
  */
-async function fetchOrders(force = false) {
-  showLoading(true, "讀取即時訂單清單...");
-  document.getElementById('selectAll').checked = false;
-  try {
-    // 改為向 GAS 請求即時資料，解決發佈網路 CSV 快取問題
-    const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
-    const data = await res.json();
-    const tbody = document.getElementById('tableBody');
-    
-    if (data.status === "success") {
-      const rows = data.data; // 這是 GAS 回傳的二維陣列
-      if (rows.length < 2) {
-        tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
-        return;
-      }
-      // 排除第一列標題，渲染資料
-      tbody.innerHTML = rows.slice(1).map((row, i) => `
-        <tr>
-          <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
-          <td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]||""}</td>
-          <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
-        </tr>`).join('');
-    }
-  } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
-}
-
-// 查詢功能仍保留 CSV (因欄位較多，且通常延遲幾分鐘影響較小，如需即時可比照 fetchOrders 修改)
-const queryCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1785595426&single=true&output=csv";
-let queryHeader = [];
-let queryDataRows = [];
-
-async function loadQueryCSV(force = false) {
+async function loadQueryData(force = false) {
   if (queryDataRows.length > 0 && !force) return;
-  showLoading(true, "讀取查詢資料中...");
+
+  // 1. 在獲取新資料前，清除所有舊的暫存顯示 (返回未查詢前的狀態)
+  document.getElementById("sheetTitle").innerText = "資料讀取中...";
+  document.getElementById("buyerSelect").innerHTML = '<option value="">--請選擇--</option>';
+  document.getElementById("listSelect").value = "";
+  document.querySelector("#resultTable thead").innerHTML = "";
+  document.querySelector("#resultTable tbody").innerHTML = "";
+  queryHeader = [];
+  queryDataRows = [];
+  
+  showLoading(true, "讀取即時查詢資料中...");
+
   try {
-    const res = await fetch(queryCsvUrl + "&t=" + Date.now());
-    const text = await res.text();
-    const parsed = parseCSV(text);
-    const rows = parsed.filter(r => r.some(c => (c ?? "").trim() !== ""));
-    if (rows.length > 1) {
-      const titleInfo = rows[0];
-      document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
-      queryHeader = rows[1]; queryDataRows = rows.slice(2); buildBuyerDropdown();
+    // 2. 改由 GAS 後端獲取 JSON 資料，徹底解決 CSV 發布的快取問題
+    const res = await fetch(`${GAS_URL}?action=getQueryData&t=${Date.now()}`);
+    const result = await res.json();
+    
+    if (result.status === "success") {
+      const rows = result.data.filter(r => r.some(c => (c ?? "").toString().trim() !== ""));
+      if (rows.length > 1) {
+        const titleInfo = rows[0];
+        document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + (titleInfo[0] || "") + ")";
+        queryHeader = rows[1]; 
+        queryDataRows = rows.slice(2); 
+        buildBuyerDropdown();
+      } else {
+        document.getElementById("sheetTitle").innerText = "目前工作表尚無訂單資料";
+      }
     }
-  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
+  } catch (e) { 
+    alert("讀取查詢資料失敗，請確認後端設定"); 
+  } finally { 
+    showLoading(false); 
+  }
 }
 
 function buildBuyerDropdown() {
@@ -406,7 +380,7 @@ function buildBuyerDropdown() {
   if (buyerIdx === -1) return;
   const set = new Set();
   queryDataRows.forEach(r => {
-    const val = (r[buyerIdx] ?? "").trim();
+    const val = (r[buyerIdx] ?? "").toString().trim();
     if (val && val !== "購買人") set.add(val);
   });
   const select = document.getElementById("buyerSelect");
@@ -427,7 +401,7 @@ function renderNormalTable(buyer) {
     user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"),
     rice: queryHeader.indexOf("加點"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計")
   };
-  let filtered = (buyer === "ALL") ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
+  let filtered = (buyer === "ALL") ? queryDataRows : queryDataRows.filter(r => (r[idx.user] ?? "").toString().trim() === buyer);
   let totalSum = 0;
   filtered.forEach(r => {
     const subTotal = Number(r[idx.sub]) || 0;
@@ -444,7 +418,7 @@ function renderList1() {
   tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
-    const name = (r[idxBuyer] ?? "").trim();
+    const name = (r[idxBuyer] ?? "").toString().trim();
     const amt = Number(r[idxSub]) || 0;
     if (name) summary[name] = (summary[name] || 0) + amt;
   });
@@ -463,7 +437,7 @@ function renderList2() {
   tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
-    const item = (r[idxItem] ?? "").trim();
+    const item = (r[idxItem] ?? "").toString().trim();
     const qty = Number(r[idxQty]) || 0;
     if (item) summary[item] = (summary[item] || 0) + qty;
   });
@@ -486,10 +460,38 @@ document.getElementById("listSelect").addEventListener("change", (e) => {
   else if (opt === "list2") renderList2();
 });
 
+// 管理分頁功能 (刪除)
+async function fetchOrders(force = false) {
+  showLoading(true, "讀取即時訂單清單...");
+  document.getElementById('selectAll').checked = false;
+  try {
+    const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
+    const data = await res.json();
+    const tbody = document.getElementById('tableBody');
+    if (data.status === "success") {
+      const rows = data.data;
+      if (rows.length < 2) {
+        tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.slice(1).map((row, i) => `
+        <tr>
+          <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
+          <td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]||""}</td>
+          <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
+        </tr>`).join('');
+    }
+  } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
+}
+
+let statusToChange = null;
 let targetRowsToDelete = null;
 
-function toggleSelectAll(source) {
-  document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked);
+function prepareStatusChange(status) {
+    statusToChange = status;
+    const text = status ? "開啟接受回應" : "關閉接受回應";
+    document.getElementById('modalDesc').innerText = `確定要將表單設定為「${text}」嗎？請輸入密碼。`;
+    document.getElementById('modalOverlay').style.display = 'flex';
 }
 
 function prepareDelete(type) {
@@ -527,7 +529,7 @@ document.getElementById('btnConfirm').onclick = async () => {
     alert(result.message);
     if(result.status === 'success') {
         if (statusToChange !== null) fetchFormStatus();
-        else fetchOrders(true); // 刪除後立即執行即時獲取，解決快取問題
+        else fetchOrders(true);
     }
   } catch(e) { alert("執行失敗"); } finally { showLoading(false); statusToChange = null; }
 };
@@ -536,6 +538,20 @@ document.getElementById('btnCancel').onclick = () => {
     document.getElementById('modalOverlay').style.display = 'none'; 
     statusToChange = null;
 };
+
+// 設定頁面與狀態功能
+async function fetchFormStatus() {
+  const label = document.getElementById('formStatusLabel');
+  label.innerText = "查詢中...";
+  try {
+    const res = await fetch(`${GAS_URL}?action=getFormStatus`);
+    const data = await res.json();
+    if (data.status === "success") {
+      label.innerText = data.accepting ? "🟢 接受回應中" : "🔴 已停止回應";
+      label.style.color = data.accepting ? "#1e7e34" : "#dc3545";
+    }
+  } catch (e) { label.innerText = "連線出錯"; }
+}
 
 const SCRIPT_URL_SET = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
 async function loadSettingsOptions() {
@@ -561,23 +577,8 @@ async function sendData() {
   } catch(e) { status.innerHTML = "連線失敗"; } finally { btn.disabled = false; }
 }
 
-function parseCSV(text) {
-  const result = []; let cur = []; let curVal = ""; let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i], next = text[i+1];
-    if (inQuotes) {
-      if (ch === '"' && next === '"') { curVal += '"'; i++; }
-      else if (ch === '"') inQuotes = false;
-      else curVal += ch;
-    } else {
-      if (ch === '"') inQuotes = true;
-      else if (ch === ',') { cur.push(curVal); curVal = ""; }
-      else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
-      else if (ch !== '\r') curVal += ch;
-    }
-  }
-  if (curVal !== "" || cur.length > 0) { cur.push(curVal); result.push(cur); }
-  return result;
+function toggleSelectAll(source) {
+  document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked);
 }
 
 function showLoading(show, text) {
