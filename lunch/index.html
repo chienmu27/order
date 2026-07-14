@@ -263,9 +263,9 @@ tbody.innerHTML = rows.slice(1).map((row, i) => {
       <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
       <td>${formattedTime}</td>
       <td>${row[1]}</td>
-      <td>${row[2]}</td>
       <td>${row[3]}</td>
-      <td>${row[4]||""}</td>
+      <td>${row[4]}</td>
+      <td>${row[5]||""}</td>
       <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
     </tr>`;
 }).join('');
@@ -288,9 +288,9 @@ function buildBuyerDropdown() {
 // 修改 2：全部訂單清單時過濾空白購買人
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>加點</th><th>備註</th><th>數量</th><th>小計</th></tr>`;
+  thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>口味</th><th>備註</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
-  const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf("加點"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
+  const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf("口味"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
   
   // 修正位置：如果選 ALL，過濾掉「購買人」為空的列
   let filtered = [];
