@@ -229,7 +229,17 @@ async function loadQueryData(force = false) {
       if (rows.length > 1) {
         const titleInfo = rows[0];
         // 修正位置：對日期字串進行切割，只取 T 以前的部分
-        let displayDate = String(titleInfo[0] || "").split('T')[0];
+//        let displayDate = String(titleInfo[0] || "").split('T')[0];
+        
+// 修正位置：將日期字串轉為日期物件，加 1 天後再截取日期部分
+//        let displayDate = new Date(new Date(titleInfo[0]).getTime() + 86400000).toISOString().split('T')[0];        
+// 將字串轉回 Date 物件（瀏覽器會自動依時區修正），再格式化為在地日期
+let d = new Date(titleInfo[0]);
+let displayDate = d.getFullYear() + '-' + 
+                  String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(d.getDate()).padStart(2, '0');
+
+        
         document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + displayDate + ")";
         queryHeader = rows[1];
         queryDataRows = rows.slice(2);
