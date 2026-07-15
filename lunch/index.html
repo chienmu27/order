@@ -264,12 +264,21 @@ async function fetchOrders(force = false) {
         tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
         return;
       }
-      tbody.innerHTML = rows.slice(1).map((row, i) => `
-        <tr>
-          <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
-          <td>${row[0]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]||""}</td>
-          <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
-        </tr>`).join('');
+tbody.innerHTML = rows.slice(1).map((row, i) => {
+  // 將原始 ISO 時間字串轉換為台灣在地化格式
+  const formattedTime = row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : "";
+  
+  return `
+    <tr>
+      <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
+      <td>${formattedTime}</td>
+      <td>${row[2]}</td>
+      <td>${row[3]}</td>
+      <td>${row[4]}</td>
+      <td>${row[5]||""}</td>
+      <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
+    </tr>`;
+}).join('');
     }
   } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
 }
