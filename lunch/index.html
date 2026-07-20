@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
+  
   <style>
-    :root { --primary: #4285f4; --danger: #dc3545; --bg: #f8f9fa; --card: #fff; --text: #333; --muted: #666; --border: #e5e7eb; }
+    :root { --primary: #4285f4; --danger: #dc3545; --bg: #f8f9fa; --card: #fff; --text: #333; --muted: #666; --border: #e5e7eb; --notice-bg: #fffbe6; --notice-border: #ffe58f; }
     body { margin: 0; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); }
     #lineWarning { display: none; background: #fff3cd; color: #856404; padding: 12px; text-align: center; font-size: 14px; border-bottom: 2px solid #ffeeba; font-weight: bold; }
     .container { max-width: 1100px; margin: auto; padding: 18px 14px 60px; }
@@ -14,6 +15,7 @@
     .brand .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--primary); display: inline-block; }
     .nav { display: flex; gap: 8px; flex-wrap: wrap; }
     .nav button { border: 1px solid var(--border); background: white; padding: 9px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px; transition: 0.2s; }
+    .nav button:hover { border-color: #cfd6e3; transform: translateY(-1px); }
     .nav button.active { background: var(--primary); border-color: var(--primary); color: white; }
     .page { display: none; }
     .page.active { display: block; }
@@ -21,32 +23,47 @@
     .form-notice { background: #e1f5fe; padding: 12px; text-align: center; font-size: 14px; color: #01579b; border-radius: 12px 12px 0 0; border-bottom: 1px solid #b3e5fc; }
     .external-btn { display: inline-block; background: var(--primary); color: white !important; padding: 6px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 5px; border: none; cursor: pointer; font-size: 13px; }
     .form-frame { width: 100%; height: 1800px; border: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+    @media (max-width: 768px) { .form-frame { height: 2500px; } }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .header-btns { display: flex; gap: 8px; }
     .refresh-btn { background: white; border: 1px solid #ddd; padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 14px; font-weight: 700; }
+    .del-selected-btn { background: #fff0f0; border: 1px solid #ffaaaa; color: var(--danger); padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 14px; font-weight: 700; }
+    .del-all-btn { background: white; border: 1px solid var(--danger); color: var(--danger); padding: 8px 12px; cursor: pointer; border-radius: 10px; font-size: 14px; font-weight: 700; }
     .controls { background: #fdfdfd; padding: 15px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 10px 25px; align-items: center; }
+    .controls label { font-weight: bold; font-size: 14px; }
     .controls select { font-size: 16px; padding: 8px; border: 1px solid #ddd; border-radius: 8px; background: white; min-width: 200px; }
     .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 14px; }
-    th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+    th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; border-right: 1px solid #f9f9f9; }
     th { background: #f8f9fa; color: #666; font-weight: bold; }
     .total-row { font-weight: bold; background: #e9ecef !important; }
+    .btn-del { background: #fff0f0; color: var(--danger); border: 1px solid #ffcccc; padding: 6px 12px; border-radius: 10px; cursor: pointer; font-weight: 800; }
+    input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
     #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; flex-direction: column; }
     .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: none; justify-content: center; align-items: center; }
     #modalBox { background: #fff; padding: 25px; border-radius: 14px; width: 90%; max-width: 340px; text-align: center; }
-    #pwdInput { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 10px; }
+    #pwdInput { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 10px; box-sizing: border-box; }
     .modal-btns { display: flex; gap: 10px; }
     .modal-btns button { flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
     .settings-card { background: white; border-radius: 16px; padding: 20px; max-width: 380px; margin: auto; border: 1px solid #eee; }
     .field { margin-bottom: 15px; }
     .field label { display: block; font-size: 14px; margin-bottom: 5px; color: #666; font-weight: bold; }
-    .field input, .field select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
     #btnSave { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    .status-btns { display: flex; gap: 8px; margin-top: 8px; }
+    .status-btn { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.3s; }
+    .status-btn.open { background: #e6f4ea; color: #1e7e34; border-color: #c3e6cb; }
+    .status-btn.close { background: #fdf2f2; color: #dc3545; border-color: #f5c6cb; }
+    .status-btn:hover { opacity: 0.8; }
   </style>
 </head>
+
 <body>
-  <div id="lineWarning">⚠️ 偵測到您正在使用 LINE 開啟。建議點擊下方「用瀏覽器開啟」。</div>
+
+  <div id="lineWarning">⚠️ 偵測到您正在使用 LINE 開啟。為了正常登入 Google，建議點擊下方「用瀏覽器開啟」。</div>
+
   <div class="container">
     <div class="menu-bar">
       <div class="brand"><span class="dot"></span><span>訂餐系統</span></div>
@@ -57,63 +74,106 @@
         <button data-page="settingsPage">⚙️ 設定</button>
       </div>
     </div>
+
+    <!-- 填單分頁 -->
     <section id="formPage" class="page active">
       <div class="card" style="padding:0;">
-        <div class="form-notice"><b>無法登入 Google？</b><button class="external-btn" onclick="handleExternalLink()">🚀 使用系統瀏覽器開啟</button></div>
-        <iframe class="form-frame" src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header" loading="lazy"></iframe>
+        <div class="form-notice">
+          <b>無法登入 Google 帳號？</b><br>
+          <button class="external-btn" onclick="handleExternalLink()">🚀 使用系統瀏覽器開啟</button>
+        </div>
+        <iframe class="form-frame" src="https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform?usp=header" loading="lazy">載入中…</iframe>
       </div>
     </section>
+
+    <!-- 查詢分頁 -->
     <section id="queryPage" class="page">
       <div class="card">
-        <div class="header"><h3 id="sheetTitle" style="margin:0;">訂單查詢系統</h3><button class="refresh-btn" onclick="loadQueryData(true)">🔄 重新整理</button></div>
-        <div class="controls">
-          <div><label>訂購人員：</label><select id="buyerSelect"><option value="">--請選擇--</option></select></div>
-          <div><label>訂單統計：</label><select id="listSelect"><option value="">--請選擇--</option><option value="list1">購買人 / 金額總計</option><option value="list2">項目 / 訂購數量總計</option></select></div>
+        <div class="header">
+          <h3 id="sheetTitle" style="margin:0;">訂單查詢系統</h3>
+          <button class="refresh-btn" onclick="loadQueryData(true)">🔄 重新整理</button>
         </div>
-        <div class="table-container"><table id="resultTable"><thead></thead><tbody></tbody></table></div>
+        <div class="controls">
+          <div>
+            <label>訂購人員：</label>
+            <select id="buyerSelect"><option value="">--請選擇--</option></select>
+          </div>
+          <div>
+            <label>訂單統計：</label>
+            <select id="listSelect">
+              <option value="">--請選擇--</option>
+              <option value="list1">購買人 / 金額總計</option>
+              <option value="list2">項目 / 訂購數量總計</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="resultTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
+
+    <!-- 刪除分頁 -->
     <section id="deletePage" class="page">
       <div class="card">
         <div class="header">
           <h3 style="margin:0;">📋 訂單管理清單</h3>
-          <div style="display:flex; gap:8px;">
+          <div class="header-btns">
             <button class="refresh-btn" onclick="fetchOrders(true)">🔄 重新整理</button>
-            <button style="background:#fff0f0; border:1px solid #ffaaaa; color:var(--danger); padding:8px 12px; border-radius:10px; cursor:pointer;" onclick="prepareDelete('selected')">🗑️ 刪除選取</button>
-            <button style="background:white; border:1px solid var(--danger); color:var(--danger); padding:8px 12px; border-radius:10px; cursor:pointer;" onclick="prepareDelete('all')">⚠️ 全部刪除</button>
+            <button class="del-selected-btn" onclick="prepareDelete('selected')">🗑️ 刪除選取</button>
+            <button class="del-all-btn" onclick="prepareDelete('all')">⚠️ 全部刪除</button>
           </div>
         </div>
         <div class="table-container">
-          <table><thead><tr><th><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th><th>時間</th><th>訂餐人員</th><th>品項</th><th>數量</th><th>備註</th><th>操作</th></tr></thead>
-          <tbody id="tableBody"></tbody></table>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                <th>時間</th><th>訂餐人員</th><th>便當品項</th><th>數量</th><th>備註</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
         </div>
       </div>
     </section>
+
+    <!-- 設定分頁 -->
     <section id="settingsPage" class="page">
       <div class="settings-card">
         <h3>訂餐管理系統</h3>
         <div class="field"><label>訂餐日期</label><input type="date" id="orderDate"></div>
         <div class="field"><label>店家選單</label><select id="restaurant"><option>載入中...</option></select></div>
-        <div class="field"><label>表單狀態：<span id="formStatusLabel" style="color:var(--primary);">載入中...</span></label>
-          <div style="display:flex; gap:8px; margin-top:8px;">
-            <button style="flex:1; padding:10px; background:#e6f4ea; border:1px solid #c3e6cb; border-radius:10px; cursor:pointer;" onclick="prepareStatusChange(true)">🟢 開啟</button>
-            <button style="flex:1; padding:10px; background:#fdf2f2; border:1px solid #f5c6cb; border-radius:10px; cursor:pointer;" onclick="prepareStatusChange(false)">🔴 停止</button>
+        <div class="field">
+          <label>表單接受回應狀態：<span id="formStatusLabel" style="color:var(--primary);">載入中...</span></label>
+          <div class="status-btns">
+            <button class="status-btn open" onclick="prepareStatusChange(true)">🟢 開啟回應</button>
+            <button class="status-btn close" onclick="prepareStatusChange(false)">🔴 停止回應</button>
           </div>
         </div>
-        <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-        <div class="field"><label>帳號</label><input type="text" id="acc"></div>
-        <div class="field"><label>密碼</label><input type="password" id="pwd"></div>
+        <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
+        <div class="field"><label>管理帳號</label><input type="text" id="acc" placeholder="輸入帳號"></div>
+        <div class="field"><label>管理密碼</label><input type="password" id="pwd" placeholder="輸入密碼"></div>
         <button onclick="sendData()" id="btnSave">送出設定</button>
         <div id="status" style="margin-top:10px; text-align:center;"></div>
       </div>
     </section>
   </div>
-  <div id="loadingOverlay"><div class="spinner"></div><div id="loadingText" style="margin-top:15px; color:#555;">處理中...</div></div>
+
+  <div id="loadingOverlay"><div class="spinner"></div><div id="loadingText" style="margin-top:15px; color:#555;">正在處理中...</div></div>
   <div id="modalOverlay">
-    <div id="modalBox"><h3>身分驗證</h3><p id="modalDesc">請輸入管理密碼</p><input type="password" id="pwdInput"><div class="modal-btns">
-      <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:#eee;">取消</button>
-      <button id="btnConfirm" style="background:var(--primary); color:white;">確認</button>
-    </div></div>
+    <div id="modalBox">
+      <h3 style="margin-top:0;">身分驗證</h3>
+      <p id="modalDesc" style="color:#666; font-size:14px;">請輸入管理密碼</p>
+      <input type="password" id="pwdInput" placeholder="請輸入密碼">
+      <div class="modal-btns">
+        <button id="btnCancel" style="background:#eee;">取消</button>
+        <button id="btnConfirm" style="background:var(--primary); color:white;">確認</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -126,20 +186,29 @@ let statusToChange = null;
 let targetRowsToDelete = null;
 
 function handleExternalLink() {
-  if (/Android/i.test(navigator.userAgent)) window.location.href = `intent://${rawFormUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (isAndroid) window.location.href = `intent://${rawFormUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
   else window.location.href = rawFormUrl + "?openExternalBrowser=1";
 }
 
-(function initNav(){
+function checkBrowser() { if (/Line/i.test(navigator.userAgent)) document.getElementById('lineWarning').style.display = 'block'; }
+
+function setDefaultDate() {
   const today = new Date();
   document.getElementById('orderDate').value = today.toISOString().split('T')[0];
-  if (/Line/i.test(navigator.userAgent)) document.getElementById('lineWarning').style.display = 'block';
-  document.querySelectorAll(".nav button").forEach(btn => {
+}
+
+(function initNav(){
+  setDefaultDate();
+  checkBrowser();
+  const navButtons = document.querySelectorAll(".nav button");
+  const pages = document.querySelectorAll(".page");
+  navButtons.forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.page;
-      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+      pages.forEach(p => p.classList.remove("active"));
       document.getElementById(id).classList.add("active");
-      document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+      navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       if(id === "deletePage") fetchOrders(true);
       if(id === "queryPage") loadQueryData(true);
@@ -148,135 +217,192 @@ function handleExternalLink() {
   });
 })();
 
+// 修改 1：處理標題日期格式 (移除 T16:00:00.000Z)
 async function loadQueryData(force = false) {
   if (queryDataRows.length > 0 && !force) return;
-  showLoading(true, "讀取資料...");
+  showLoading(true, "讀取最新查詢資料...");
   try {
     const res = await fetch(`${GAS_URL}?action=getOrders&sheetName=訂餐&t=${Date.now()}`);
     const result = await res.json();
     if (result.status === "success") {
       const rows = result.data;
       if (rows.length > 1) {
-        let d = new Date(rows[0][0]);
-        let displayDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        document.getElementById("sheetTitle").innerText = (rows[0][2] || "訂單查詢") + " (" + displayDate + ")";
-        queryHeader = rows[1].map(h => String(h).trim()); // 去除欄位名稱空格
+        const titleInfo = rows[0];
+        // 修正位置：對日期字串進行切割，只取 T 以前的部分
+//        let displayDate = String(titleInfo[0] || "").split('T')[0];
+        
+// 修正位置：將日期字串轉為日期物件，加 1 天後再截取日期部分
+//        let displayDate = new Date(new Date(titleInfo[0]).getTime() + 86400000).toISOString().split('T')[0];        
+// 將字串轉回 Date 物件（瀏覽器會自動依時區修正），再格式化為在地日期
+let d = new Date(titleInfo[0]);
+let displayDate = d.getFullYear() + '-' + 
+                  String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(d.getDate()).padStart(2, '0');
+
+        
+        document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + displayDate + ")";
+        queryHeader = rows[1];
         queryDataRows = rows.slice(2);
         buildBuyerDropdown();
-        renderNormalTable("ALL"); // 預設顯示全部
+        document.querySelector("#resultTable thead").innerHTML = "";
+        document.querySelector("#resultTable tbody").innerHTML = "";
       }
     }
-  } catch (e) { alert("讀取失敗"); } finally { showLoading(false); }
+  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
+}
+
+async function fetchOrders(force = false) {
+  showLoading(true, "讀取即時訂單清單...");
+  document.getElementById('selectAll').checked = false;
+  try {
+    const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
+    const data = await res.json();
+    const tbody = document.getElementById('tableBody');
+    if (data.status === "success") {
+      const rows = data.data;
+      if (rows.length < 2) {
+        tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
+        return;
+      }
+tbody.innerHTML = rows.slice(1).map((row, i) => {
+  // 將原始 ISO 時間字串轉換為台灣在地化格式
+  const formattedTime = row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : "";
+  
+  return `
+    <tr>
+      <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
+      <td>${formattedTime}</td>
+      <td>${row[2]}</td>
+      <td>${row[3]}</td>
+      <td>${row[4]}</td>
+      <td>${row[5]||""}</td>
+      <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
+    </tr>`;
+}).join('');
+    }
+  } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
 }
 
 function buildBuyerDropdown() {
-  const bIdx = queryHeader.indexOf("購買人");
-  if (bIdx === -1) return;
+  const buyerIdx = queryHeader.indexOf("購買人");
+  if (buyerIdx === -1) return;
   const set = new Set();
-  queryDataRows.forEach(r => { if(String(r[bIdx]||"").trim()) set.add(String(r[bIdx]).trim()); });
+  queryDataRows.forEach(r => { const val = (r[buyerIdx] ?? "").trim(); if (val) set.add(val); });
   const select = document.getElementById("buyerSelect");
   select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
-  [...set].sort().forEach(v => { select.innerHTML += `<option value="${v}">${v}</option>`; });
+  [...set].sort().forEach(v => {
+    const op = document.createElement("option"); op.value = v; op.textContent = v; select.appendChild(op);
+  });
 }
 
+// 修改 2：全部訂單清單時過濾空白購買人
 function renderNormalTable(buyer) {
-  if (!buyer) return;
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  // 這裡使用動態標題確保索引正確
-  thead.innerHTML = `<tr>${queryHeader.map(h => `<th>${h}</th>`).join('')}</tr>`;
+  thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th>口味</th><th>備註</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
-  const bIdx = queryHeader.indexOf("購買人");
-  let filtered = queryDataRows.filter(r => String(r[bIdx]||"").trim() !== ""); // 先過濾空白購買人
-  if (buyer !== "ALL") filtered = filtered.filter(r => String(r[bIdx]).trim() === buyer);
+  const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf("口味"), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
   
-  let totalSum = 0, subIdx = queryHeader.indexOf("小計");
+  // 修正位置：如果選 ALL，過濾掉「購買人」為空的列
+  let filtered = [];
+  if (buyer === "ALL") {
+    filtered = queryDataRows.filter(r => (r[idx.user] ?? "").trim() !== "");
+  } else {
+    filtered = queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
+  }
+
+  let totalSum = 0;
   filtered.forEach(r => {
-    tbody.innerHTML += `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`;
-    if(subIdx !== -1) totalSum += Number(r[subIdx]) || 0;
+    const subTotal = Number(r[idx.sub]) || 0; totalSum += subTotal;
+    tbody.innerHTML += `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
   });
-  if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="${queryHeader.length-1}">個人合計</td><td>${totalSum}</td></tr>`;
+  if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
 }
 
 function renderList1() {
-  const bIdx = queryHeader.indexOf("購買人"), sIdx = queryHeader.indexOf("小計");
-  if (bIdx === -1 || sIdx === -1) { alert("找不到必要欄位(購買人/小計)"); return; }
+  const idxBuyer = queryHeader.indexOf("購買人"), idxSub = queryHeader.indexOf("小計");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
   tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
-    const name = String(r[bIdx]||"").trim();
-    if (name) summary[name] = (summary[name] || 0) + (Number(r[sIdx]) || 0);
+    const name = (r[idxBuyer] ?? "").trim(); const amt = Number(r[idxSub]) || 0;
+    if (name) summary[name] = (summary[name] || 0) + amt;
   });
   let grandTotal = 0;
-  Object.keys(summary).sort().forEach(n => {
-    grandTotal += summary[n]; tbody.innerHTML += `<tr><td>${n}</td><td>${summary[n]}</td></tr>`;
+  Object.keys(summary).sort().forEach(name => {
+    grandTotal += summary[name]; tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
   });
   tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
 }
 
 function renderList2() {
-  const iIdx = queryHeader.indexOf("項目"), qIdx = queryHeader.indexOf("數量");
-  if (iIdx === -1 || qIdx === -1) { alert("找不到必要欄位(項目/數量)"); return; }
+  const idxItem = queryHeader.indexOf("項目"), idxQty = queryHeader.indexOf("數量");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>項目</th><th>數量總計</th></tr>`;
+  thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
   tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
-    const item = String(r[iIdx]||"").trim();
-    if (item && item !== "項目") summary[item] = (summary[item] || 0) + (Number(r[qIdx]) || 0);
+    const item = (r[idxItem] ?? "").trim(); const qty = Number(r[idxQty]) || 0;
+    if (item) summary[item] = (summary[item] || 0) + qty;
   });
   let grandQty = 0;
-  Object.keys(summary).sort().forEach(i => {
-    grandQty += summary[i]; tbody.innerHTML += `<tr><td>${i}</td><td>${summary[i]}</td></tr>`;
+  Object.keys(summary).sort().forEach(item => {
+    grandQty += summary[item]; tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
   });
   tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
 }
 
 document.getElementById("buyerSelect").addEventListener("change", (e) => {
   document.getElementById("listSelect").value = "";
-  renderNormalTable(e.target.value);
+  if (e.target.value) renderNormalTable(e.target.value);
 });
 document.getElementById("listSelect").addEventListener("change", (e) => {
   document.getElementById("buyerSelect").value = "";
-  if (e.target.value === "list1") renderList1(); 
-  else if (e.target.value === "list2") renderList2();
+  if (e.target.value === "list1") renderList1(); else if (e.target.value === "list2") renderList2();
 });
 
-async function fetchOrders(force = false) {
-  showLoading(true, "讀取中...");
-  try {
-    const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
-    const result = await res.json();
-    const tbody = document.getElementById('tableBody');
-    if (result.status === "success") {
-      tbody.innerHTML = result.data.slice(1).map((row, i) => `
-        <tr>
-          <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
-          <td>${row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : ""}</td>
-          <td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]||""}</td>
-          <td><button onclick="prepareDelete(${i+2})" style="color:red; cursor:pointer;">刪除</button></td>
-        </tr>`).join('');
-    }
-  } catch (e) {} finally { showLoading(false); }
-}
-
 async function fetchFormStatus() {
-  const lbl = document.getElementById('formStatusLabel');
+  const label = document.getElementById('formStatusLabel'); label.innerText = "查詢中...";
   try {
     const res = await fetch(`${GAS_URL}?action=getFormStatus`);
     const data = await res.json();
-    lbl.innerText = data.accepting ? "🟢 接受中" : "🔴 已停止";
-    lbl.style.color = data.accepting ? "green" : "red";
-  } catch (e) {}
+    if (data.status === "success") {
+      label.innerText = data.accepting ? "🟢 接受回應中" : "🔴 已停止回應";
+      label.style.color = data.accepting ? "#1e7e34" : "#dc3545";
+    }
+  } catch (e) { label.innerText = "連線出錯"; }
 }
 
-function prepareDelete(row) { targetRowsToDelete = row; statusToChange = null; document.getElementById('modalOverlay').style.display='flex'; }
-function prepareStatusChange(s) { statusToChange = s; targetRowsToDelete = null; document.getElementById('modalOverlay').style.display='flex'; }
+function prepareStatusChange(status) {
+  statusToChange = status;
+  document.getElementById('modalDesc').innerText = `確定要設定為「${status ? "開啟" : "關閉"}回應」嗎？請輸入密碼。`;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function toggleSelectAll(source) { document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked); }
+
+function prepareDelete(type) {
+  statusToChange = null;
+  if (type === 'selected') {
+    const checked = document.querySelectorAll('.row-checkbox:checked');
+    if (checked.length === 0) { alert("請勾選訂單"); return; }
+    targetRowsToDelete = Array.from(checked).map(cb => parseInt(cb.value));
+    document.getElementById('modalDesc').innerText = `確定要刪除選取的 ${targetRowsToDelete.length} 筆訂單嗎？`;
+  } else if (type === 'all') {
+    targetRowsToDelete = 'all';
+    document.getElementById('modalDesc').innerText = "確定要刪除「全部」訂單資料嗎？";
+  } else {
+    targetRowsToDelete = [type];
+    document.getElementById('modalDesc').innerText = "請輸入密碼確認刪除";
+  }
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
 
 document.getElementById('btnConfirm').onclick = async () => {
   const pwd = document.getElementById('pwdInput').value;
+  if(!pwd) return;
   document.getElementById('modalOverlay').style.display = 'none';
+  document.getElementById('pwdInput').value = '';
   showLoading(true, "處理中...");
   try {
     let payload = { password: pwd };
@@ -285,31 +411,42 @@ document.getElementById('btnConfirm').onclick = async () => {
     const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
     const result = await res.json();
     alert(result.message);
-    if(result.status === 'success') { fetchOrders(true); fetchFormStatus(); }
-  } catch(e) { alert("連線失敗"); } finally { showLoading(false); document.getElementById('pwdInput').value=''; }
+    if(result.status === 'success') {
+      if (statusToChange !== null) fetchFormStatus();
+      else fetchOrders(true);
+    }
+  } catch(e) { alert("執行失敗"); } finally { showLoading(false); statusToChange = null; }
 };
 
+document.getElementById('btnCancel').onclick = () => { document.getElementById('modalOverlay').style.display = 'none'; statusToChange = null; };
+
+const SCRIPT_URL_SET = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
 async function loadSettingsOptions() {
-  const SCRIPT_SET = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
   try {
-    const res = await fetch(SCRIPT_SET + "?action=getOptions");
+    const res = await fetch(SCRIPT_URL_SET + "?action=getOptions");
     const data = await res.json();
-    const sel = document.getElementById('restaurant');
-    sel.innerHTML = data.filter(i => i).map(i => `<option value="${i}">${i}</option>`).join('');
-  } catch(e) {}
+    const select = document.getElementById('restaurant');
+    select.innerHTML = '';
+    data.forEach(item => { if(item) { let opt = document.createElement('option'); opt.value = opt.innerHTML = item; select.appendChild(opt); } });
+  } catch(e) { console.error("店家選單載入失敗"); }
 }
 
 async function sendData() {
-  const SCRIPT_SET = 'https://script.google.com/macros/s/AKfycbxsG1au7MoB7WKs397tM0ZQciSZkdyM_U5Bgb7FBTzOn9OVLFi6_94waAz3HEddovIY/exec';
+  const btn = document.getElementById('btnSave'), status = document.getElementById('status');
   const d = document.getElementById('orderDate').value, s = document.getElementById('restaurant').value, a = document.getElementById('acc').value, p = document.getElementById('pwd').value;
+  if (!a || !p || !d || !s) { alert("請填寫完整資訊"); return; }
+  btn.disabled = true; status.innerHTML = "處理中...";
   try {
-    const res = await fetch(`${SCRIPT_SET}?action=submit&date=${d}&store=${s}&acc=${a}&pwd=${p}`);
-    document.getElementById('status').innerText = await res.text();
-  } catch(e) { document.getElementById('status').innerText = "連線失敗"; }
+    const r = await fetch(`${SCRIPT_URL_SET}?action=submit&date=${d}&store=${s}&acc=${a}&pwd=${p}`);
+    const t = await r.text();
+    status.innerHTML = t; status.style.color = t.includes("成功") ? "green" : "red";
+  } catch(e) { status.innerHTML = "連線失敗"; } finally { btn.disabled = false; }
 }
 
-function showLoading(s, t) { document.getElementById('loadingOverlay').style.display = s ? 'flex' : 'none'; document.getElementById('loadingText').innerText = t; }
-function toggleSelectAll(s) { document.querySelectorAll('.row-checkbox').forEach(c => c.checked = s.checked); }
+function showLoading(show, text) {
+  document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+  if(text) document.getElementById('loadingText').innerText = text;
+}
 </script>
 </body>
 </html>
