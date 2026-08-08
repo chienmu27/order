@@ -6,6 +6,7 @@
   <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
   
   <style>
+    /* CSS 部分維持不變 */
     :root { --primary: #4285f4; --danger: #dc3545; --bg: #f8f9fa; --card: #fff; --text: #333; --muted: #666; --border: #e5e7eb; --notice-bg: #fffbe6; --notice-border: #ffe58f; }
     body { margin: 0; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); }
     #lineWarning { display: none; background: #fff3cd; color: #856404; padding: 12px; text-align: center; font-size: 14px; border-bottom: 2px solid #ffeeba; font-weight: bold; }
@@ -53,9 +54,9 @@
     .field input, .field select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
     #btnSave { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
     .status-btns { display: flex; gap: 8px; margin-top: 8px; }
-    .status-btn { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.3s; }
-    .status-btn.open { background: #e6f4ea; color: #1e7e34; border-color: #c3e6cb; }
-    .status-btn.close { background: #fdf2f2; color: #dc3545; border-color: #f5c6cb; }
+    .status-btn { flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.3s; }
+    .status-btn.open { background: #e6f4ea; color: #1e7e34; border: 1px solid #c3e6cb; }
+    .status-btn.close { background: #fdf2f2; color: #dc3545; border: 1px solid #f5c6cb; }
     .status-btn:hover { opacity: 0.8; }
   </style>
 </head>
@@ -75,7 +76,6 @@
       </div>
     </div>
 
-    <!-- 填單分頁 -->
     <section id="formPage" class="page active">
       <div class="card" style="padding:0;">
         <div class="form-notice">
@@ -86,7 +86,6 @@
       </div>
     </section>
 
-    <!-- 查詢分頁 -->
     <section id="queryPage" class="page">
       <div class="card">
         <div class="header">
@@ -116,7 +115,6 @@
       </div>
     </section>
 
-    <!-- 刪除分頁 -->
     <section id="deletePage" class="page">
       <div class="card">
         <div class="header">
@@ -141,7 +139,6 @@
       </div>
     </section>
 
-    <!-- 設定分頁 -->
     <section id="settingsPage" class="page">
       <div class="settings-card">
         <h3>訂餐管理系統</h3>
@@ -180,6 +177,11 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec"; 
 const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
 
+// 優化：建立快取機制
+let cachedQueryData = null;
+let cachedOrdersData = null;
+let cachedRestaurantOptions = null;
+
 let queryHeader = [];
 let queryDataRows = [];
 let statusToChange = null;
@@ -210,77 +212,97 @@ function setDefaultDate() {
       document.getElementById(id).classList.add("active");
       navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      if(id === "deletePage") fetchOrders(true);
-      if(id === "queryPage") loadQueryData(true);
-      if(id === "settingsPage") { loadSettingsOptions(); fetchFormStatus(); }
+      
+      // 優化：切換分頁時，若快取已有資料，則不強制更新(false)
+      if(id === "deletePage") fetchOrders(false);
+      if(id === "queryPage") loadQueryData(false);
+      if(id === "settingsPage") loadSettingsPage();
     });
   });
 })();
 
-// 修改 1：處理標題日期格式 (移除 T16:00:00.000Z)
+// 優化：並行載入設定頁面所需資料
+async function loadSettingsPage() {
+  // 若快取無選單資料才載入，狀態則每次點擊都檢查(因為狀態變動頻率高)
+  const tasks = [fetchFormStatus()];
+  if (!cachedRestaurantOptions) tasks.push(loadSettingsOptions());
+  await Promise.all(tasks);
+}
+
 async function loadQueryData(force = false) {
-  if (queryDataRows.length > 0 && !force) return;
+  // 優化：有快取且非強制更新時直接讀取
+  if (cachedQueryData && !force) {
+    processQueryData(cachedQueryData);
+    return;
+  }
+  
   showLoading(true, "讀取最新查詢資料...");
   try {
     const res = await fetch(`${GAS_URL}?action=getOrders&sheetName=訂餐&t=${Date.now()}`);
     const result = await res.json();
     if (result.status === "success") {
-      const rows = result.data;
-      if (rows.length > 1) {
-        const titleInfo = rows[0];
-        // 修正位置：對日期字串進行切割，只取 T 以前的部分
-//        let displayDate = String(titleInfo[0] || "").split('T')[0];
-        
-// 修正位置：將日期字串轉為日期物件，加 1 天後再截取日期部分
-//        let displayDate = new Date(new Date(titleInfo[0]).getTime() + 86400000).toISOString().split('T')[0];        
-// 將字串轉回 Date 物件（瀏覽器會自動依時區修正），再格式化為在地日期
-let d = new Date(titleInfo[0]);
-let displayDate = d.getFullYear() + '-' + 
-                  String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-                  String(d.getDate()).padStart(2, '0');
-
-        
-        document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + displayDate + ")";
-        queryHeader = rows[1];
-        queryDataRows = rows.slice(2);
-        buildBuyerDropdown();
-        document.querySelector("#resultTable thead").innerHTML = "";
-        document.querySelector("#resultTable tbody").innerHTML = "";
-      }
+      cachedQueryData = result.data; // 存入快取
+      processQueryData(cachedQueryData);
     }
   } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
 }
 
+function processQueryData(rows) {
+  if (rows.length > 1) {
+    const titleInfo = rows[0];
+    let d = new Date(titleInfo[0]);
+    let displayDate = d.getFullYear() + '-' + 
+                      String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                      String(d.getDate()).padStart(2, '0');
+    
+    document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + displayDate + ")";
+    queryHeader = rows[1];
+    queryDataRows = rows.slice(2);
+    buildBuyerDropdown();
+    document.querySelector("#resultTable thead").innerHTML = "";
+    document.querySelector("#resultTable tbody").innerHTML = "";
+  }
+}
+
 async function fetchOrders(force = false) {
+  // 優化：快取機制
+  if (cachedOrdersData && !force) {
+    renderOrdersTable(cachedOrdersData);
+    return;
+  }
+
   showLoading(true, "讀取即時訂單清單...");
   document.getElementById('selectAll').checked = false;
   try {
     const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
     const data = await res.json();
-    const tbody = document.getElementById('tableBody');
     if (data.status === "success") {
-      const rows = data.data;
-      if (rows.length < 2) {
-        tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
-        return;
-      }
-tbody.innerHTML = rows.slice(1).map((row, i) => {
-  // 將原始 ISO 時間字串轉換為台灣在地化格式
-  const formattedTime = row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : "";
-  
-  return `
-    <tr>
-      <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
-      <td>${formattedTime}</td>
-      <td>${row[2]}</td>
-      <td>${row[3]}</td>
-      <td>${row[4]}</td>
-      <td>${row[6]||""}</td>
-      <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
-    </tr>`;
-}).join('');
+      cachedOrdersData = data.data; // 存入快取
+      renderOrdersTable(cachedOrdersData);
     }
   } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
+}
+
+function renderOrdersTable(rows) {
+  const tbody = document.getElementById('tableBody');
+  if (rows.length < 2) {
+    tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
+    return;
+  }
+  // 優化：使用一次性 join 渲染
+  tbody.innerHTML = rows.slice(1).map((row, i) => {
+    const formattedTime = row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : "";
+    return `
+      <tr>
+        <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
+        <td>${formattedTime}</td>
+        <td>${row[2]}</td>
+        <td>${row[3]}</td>
+        <td>${row[4]}</td>
+        <td>${row[6]||""}</td>
+        <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
+      </tr>`;
+  }).join('');
 }
 
 function buildBuyerDropdown() {
@@ -295,14 +317,12 @@ function buildBuyerDropdown() {
   });
 }
 
-// 修改 2：全部訂單清單時過濾空白購買人
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th></th><th>備註</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
   const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf(""), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
   
-  // 修正位置：如果選 ALL，過濾掉「購買人」為空的列
   let filtered = [];
   if (buyer === "ALL") {
     filtered = queryDataRows.filter(r => (r[idx.user] ?? "").trim() !== "");
@@ -311,10 +331,12 @@ function renderNormalTable(buyer) {
   }
 
   let totalSum = 0;
-  filtered.forEach(r => {
+  // 優化：大量資料時的渲染效能
+  tbody.innerHTML = filtered.map(r => {
     const subTotal = Number(r[idx.sub]) || 0; totalSum += subTotal;
-    tbody.innerHTML += `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
-  });
+    return `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
+  }).join('');
+
   if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
 }
 
@@ -322,16 +344,15 @@ function renderList1() {
   const idxBuyer = queryHeader.indexOf("購買人"), idxSub = queryHeader.indexOf("小計");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
-  tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
     const name = (r[idxBuyer] ?? "").trim(); const amt = Number(r[idxSub]) || 0;
     if (name) summary[name] = (summary[name] || 0) + amt;
   });
   let grandTotal = 0;
-  Object.keys(summary).sort().forEach(name => {
-    grandTotal += summary[name]; tbody.innerHTML += `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
-  });
+  tbody.innerHTML = Object.keys(summary).sort().map(name => {
+    grandTotal += summary[name]; return `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
+  }).join('');
   tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
 }
 
@@ -339,16 +360,15 @@ function renderList2() {
   const idxItem = queryHeader.indexOf("項目"), idxQty = queryHeader.indexOf("數量");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
-  tbody.innerHTML = "";
   const summary = {};
   queryDataRows.forEach(r => {
     const item = (r[idxItem] ?? "").trim(); const qty = Number(r[idxQty]) || 0;
     if (item) summary[item] = (summary[item] || 0) + qty;
   });
   let grandQty = 0;
-  Object.keys(summary).sort().forEach(item => {
-    grandQty += summary[item]; tbody.innerHTML += `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
-  });
+  tbody.innerHTML = Object.keys(summary).sort().map(item => {
+    grandQty += summary[item]; return `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
+  }).join('');
   tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
 }
 
@@ -425,9 +445,9 @@ async function loadSettingsOptions() {
   try {
     const res = await fetch(SCRIPT_URL_SET + "?action=getOptions");
     const data = await res.json();
+    cachedRestaurantOptions = data; // 存入快取
     const select = document.getElementById('restaurant');
-    select.innerHTML = '';
-    data.forEach(item => { if(item) { let opt = document.createElement('option'); opt.value = opt.innerHTML = item; select.appendChild(opt); } });
+    select.innerHTML = data.map(item => item ? `<option value="${item}">${item}</option>` : '').join('');
   } catch(e) { console.error("店家選單載入失敗"); }
 }
 
