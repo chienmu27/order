@@ -6,7 +6,6 @@
   <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
   
   <style>
-    /* CSS 部分維持不變 */
     :root { --primary: #4285f4; --danger: #dc3545; --bg: #f8f9fa; --card: #fff; --text: #333; --muted: #666; --border: #e5e7eb; --notice-bg: #fffbe6; --notice-border: #ffe58f; }
     body { margin: 0; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); }
     #lineWarning { display: none; background: #fff3cd; color: #856404; padding: 12px; text-align: center; font-size: 14px; border-bottom: 2px solid #ffeeba; font-weight: bold; }
@@ -177,6 +176,9 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec"; 
 const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
 
+// 試算表發布的 CSV 連結 (優化查詢讀取速度)
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1605656850&single=true&output=csv";
+
 // 優化：建立快取機制
 let cachedQueryData = null;
 let cachedOrdersData = null;
@@ -229,6 +231,7 @@ async function loadSettingsPage() {
   await Promise.all(tasks);
 }
 
+// 修改點：改用發布的 CSV 讀取查詢訂單資料以加速讀取
 async function loadQueryData(force = false) {
   // 優化：有快取且非強制更新時直接讀取
   if (cachedQueryData && !force) {
@@ -236,28 +239,50 @@ async function loadQueryData(force = false) {
     return;
   }
   
-  showLoading(true, "讀取最新查詢資料...");
+  showLoading(true, "讀取最新查詢資料 (CSV)...");
   try {
-    const res = await fetch(`${GAS_URL}?action=getOrders&sheetName=訂餐&t=${Date.now()}`);
-    const result = await res.json();
-    if (result.status === "success") {
-      cachedQueryData = result.data; // 存入快取
+    // 請求已發布的 CSV 網址，並附上時間戳記防止快取
+    const res = await fetch(`${CSV_URL}&t=${Date.now()}`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if (rows && rows.length > 0) {
+      cachedQueryData = rows; // 存入快取
       processQueryData(cachedQueryData);
     }
-  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
+  } catch (e) { 
+    alert("讀取查詢資料失敗"); 
+    console.error(e);
+  } finally { 
+    showLoading(false); 
+  }
 }
 
+// 修改點：加入首行結構的相容判定，防止直讀表單回應 CSV 時出現日期 NaN
 function processQueryData(rows) {
-  if (rows.length > 1) {
+  if (rows.length > 0) {
     const titleInfo = rows[0];
     let d = new Date(titleInfo[0]);
-    let displayDate = d.getFullYear() + '-' + 
-                      String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-                      String(d.getDate()).padStart(2, '0');
+    let displayDate = "";
     
-    document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + displayDate + ")";
-    queryHeader = rows[1];
-    queryDataRows = rows.slice(2);
+    // 如果首行第一個欄位可成功解析為日期
+    if (!isNaN(d.getTime())) {
+      displayDate = d.getFullYear() + '-' + 
+                    String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(d.getDate()).padStart(2, '0');
+      queryHeader = rows[1] || [];
+      queryDataRows = rows.slice(2);
+    } else {
+      // 否則視為無 metadata 的原始表單回應 CSV，直接以今日日期替代
+      const today = new Date();
+      displayDate = today.getFullYear() + '-' + 
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(today.getDate()).padStart(2, '0');
+      queryHeader = rows[0] || [];
+      queryDataRows = rows.slice(1);
+    }
+    
+    const titleText = (titleInfo && titleInfo[2] && isNaN(new Date(titleInfo[2]).getTime())) ? titleInfo[2] : "訂單查詢";
+    document.getElementById("sheetTitle").innerText = titleText + " (" + displayDate + ")";
     buildBuyerDropdown();
     document.querySelector("#resultTable thead").innerHTML = "";
     document.querySelector("#resultTable tbody").innerHTML = "";
@@ -306,7 +331,7 @@ function renderOrdersTable(rows) {
 }
 
 function buildBuyerDropdown() {
-  const buyerIdx = queryHeader.indexOf("購買人");
+  const buyerIdx = queryHeader.indexOf("購買人") !== -1 ? queryHeader.indexOf("購買人") : queryHeader.indexOf("訂餐人員");
   if (buyerIdx === -1) return;
   const set = new Set();
   queryDataRows.forEach(r => { const val = (r[buyerIdx] ?? "").trim(); if (val) set.add(val); });
@@ -321,7 +346,16 @@ function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th></th><th>備註</th><th>數量</th><th>小計</th></tr>`;
   tbody.innerHTML = "";
-  const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf(""), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
+  
+  const idx = { 
+    user: queryHeader.indexOf("購買人") !== -1 ? queryHeader.indexOf("購買人") : queryHeader.indexOf("訂餐人員"), 
+    item: queryHeader.indexOf("項目") !== -1 ? queryHeader.indexOf("項目") : queryHeader.indexOf("便當品項"), 
+    price: queryHeader.indexOf("單價") !== -1 ? queryHeader.indexOf("單價") : -1, 
+    rice: queryHeader.indexOf(""), 
+    add: queryHeader.indexOf("備註"), 
+    qty: queryHeader.indexOf("數量"), 
+    sub: queryHeader.indexOf("小計") !== -1 ? queryHeader.indexOf("小計") : -1
+  };
   
   let filtered = [];
   if (buyer === "ALL") {
@@ -331,22 +365,37 @@ function renderNormalTable(buyer) {
   }
 
   let totalSum = 0;
-  // 優化：大量資料時的渲染效能
   tbody.innerHTML = filtered.map(r => {
-    const subTotal = Number(r[idx.sub]) || 0; totalSum += subTotal;
-    return `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
+    const priceVal = idx.price !== -1 ? (r[idx.price] || "") : "";
+    const qtyVal = Number(r[idx.qty]) || 0;
+    const subTotal = idx.sub !== -1 ? (Number(r[idx.sub]) || 0) : (qtyVal * (Number(priceVal) || 0)); 
+    totalSum += subTotal;
+    return `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${priceVal}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
   }).join('');
 
   if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
 }
 
 function renderList1() {
-  const idxBuyer = queryHeader.indexOf("購買人"), idxSub = queryHeader.indexOf("小計");
+  const idxBuyer = queryHeader.indexOf("購買人") !== -1 ? queryHeader.indexOf("購買人") : queryHeader.indexOf("訂餐人員");
+  const idxSub = queryHeader.indexOf("小計") !== -1 ? queryHeader.indexOf("小計") : -1;
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
   const summary = {};
+  
   queryDataRows.forEach(r => {
-    const name = (r[idxBuyer] ?? "").trim(); const amt = Number(r[idxSub]) || 0;
+    const name = (r[idxBuyer] ?? "").trim(); 
+    let amt = 0;
+    if (idxSub !== -1) {
+      amt = Number(r[idxSub]) || 0;
+    } else {
+      // 若無小計，改以數量計算
+      const qtyIdx = queryHeader.indexOf("數量");
+      const priceIdx = queryHeader.indexOf("單價");
+      const qty = qtyIdx !== -1 ? (Number(r[qtyIdx]) || 0) : 0;
+      const price = priceIdx !== -1 ? (Number(r[priceIdx]) || 0) : 0;
+      amt = qty * price;
+    }
     if (name) summary[name] = (summary[name] || 0) + amt;
   });
   let grandTotal = 0;
@@ -357,12 +406,13 @@ function renderList1() {
 }
 
 function renderList2() {
-  const idxItem = queryHeader.indexOf("項目"), idxQty = queryHeader.indexOf("數量");
+  const idxItem = queryHeader.indexOf("項目") !== -1 ? queryHeader.indexOf("項目") : queryHeader.indexOf("便當品項");
+  const idxQty = queryHeader.indexOf("數量");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
   thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
   const summary = {};
   queryDataRows.forEach(r => {
-    const item = (r[idxItem] ?? "").trim(); const qty = Number(r[idxQty]) || 0;
+    const item = (r[idxItem] ?? "").trim(); const qty = idxQty !== -1 ? (Number(r[idxQty]) || 0) : 0;
     if (item) summary[item] = (summary[item] || 0) + qty;
   });
   let grandQty = 0;
@@ -466,6 +516,47 @@ async function sendData() {
 function showLoading(show, text) {
   document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
   if(text) document.getElementById('loadingText').innerText = text;
+}
+
+// 修改點：新增輕量級 CSV 解析器，用於解析已發布之網頁 CSV 資料
+function parseCSV(text) {
+  const result = [];
+  let cur = [];
+  let curVal = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i+1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        curVal += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        curVal += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        cur.push(curVal);
+        curVal = "";
+      } else if (ch === '\n') {
+        cur.push(curVal);
+        result.push(cur);
+        cur = [];
+        curVal = "";
+      } else if (ch !== '\r') {
+        curVal += ch;
+      }
+    }
+  }
+  if (curVal !== "" || cur.length > 0) {
+    cur.push(curVal);
+    result.push(cur);
+  }
+  return result;
 }
 </script>
 </body>
