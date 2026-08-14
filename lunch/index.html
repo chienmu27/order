@@ -233,7 +233,7 @@ async function loadQueryData(force = false) {
     return;
   }
   
-  showLoading(true, "讀取最新查詢資料(CSV)...");
+  showLoading(true, "讀取最新查詢資料...");
   try {
     const res = await fetch(`${CSV_URL}&t=${Date.now()}`);
     const text = await res.text();
