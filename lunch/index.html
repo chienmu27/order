@@ -6,7 +6,6 @@
   <title>訂餐系統（填單 / 查詢 / 刪除 / 設定）</title>
   
   <style>
-    /* CSS 部分維持不變 */
     :root { --primary: #4285f4; --danger: #dc3545; --bg: #f8f9fa; --card: #fff; --text: #333; --muted: #666; --border: #e5e7eb; --notice-bg: #fffbe6; --notice-border: #ffe58f; }
     body { margin: 0; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); }
     #lineWarning { display: none; background: #fff3cd; color: #856404; padding: 12px; text-align: center; font-size: 14px; border-bottom: 2px solid #ffeeba; font-weight: bold; }
@@ -76,6 +75,7 @@
       </div>
     </div>
 
+    <!-- 填單分頁 -->
     <section id="formPage" class="page active">
       <div class="card" style="padding:0;">
         <div class="form-notice">
@@ -86,6 +86,7 @@
       </div>
     </section>
 
+    <!-- 查詢分頁 -->
     <section id="queryPage" class="page">
       <div class="card">
         <div class="header">
@@ -115,6 +116,7 @@
       </div>
     </section>
 
+    <!-- 刪除分頁 -->
     <section id="deletePage" class="page">
       <div class="card">
         <div class="header">
@@ -139,6 +141,7 @@
       </div>
     </section>
 
+    <!-- 設定分頁 -->
     <section id="settingsPage" class="page">
       <div class="settings-card">
         <h3>訂餐管理系統</h3>
@@ -175,15 +178,13 @@
 
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec"; 
+const INDEX_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1289096180&single=true&output=csv";
 const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
 
-// 優化：建立快取機制
-let cachedQueryData = null;
-let cachedOrdersData = null;
+let cachedCSVData = null; // 存放 index CSV 的二維陣列
+let cachedOrdersData = null; 
 let cachedRestaurantOptions = null;
 
-let queryHeader = [];
-let queryDataRows = [];
 let statusToChange = null;
 let targetRowsToDelete = null;
 
@@ -212,8 +213,6 @@ function setDefaultDate() {
       document.getElementById(id).classList.add("active");
       navButtons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      
-      // 優化：切換分頁時，若快取已有資料，則不強制更新(false)
       if(id === "deletePage") fetchOrders(false);
       if(id === "queryPage") loadQueryData(false);
       if(id === "settingsPage") loadSettingsPage();
@@ -221,155 +220,120 @@ function setDefaultDate() {
   });
 })();
 
-// 優化：並行載入設定頁面所需資料
 async function loadSettingsPage() {
-  // 若快取無選單資料才載入，狀態則每次點擊都檢查(因為狀態變動頻率高)
   const tasks = [fetchFormStatus()];
   if (!cachedRestaurantOptions) tasks.push(loadSettingsOptions());
   await Promise.all(tasks);
 }
 
+/**
+ * 核心修改 1：改讀 CSV 以加速讀取
+ */
 async function loadQueryData(force = false) {
-  // 優化：有快取且非強制更新時直接讀取
-  if (cachedQueryData && !force) {
-    processQueryData(cachedQueryData);
+  if (cachedCSVData && !force) {
+    buildBuyerDropdown();
     return;
   }
   
-  showLoading(true, "讀取最新查詢資料...");
+  showLoading(true, "讀取最新查詢資料(CSV)...");
   try {
-    const res = await fetch(`${GAS_URL}?action=getOrders&sheetName=訂餐&t=${Date.now()}`);
-    const result = await res.json();
-    if (result.status === "success") {
-      cachedQueryData = result.data; // 存入快取
-      processQueryData(cachedQueryData);
-    }
-  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
-}
-
-function processQueryData(rows) {
-  if (rows.length > 1) {
-    const titleInfo = rows[0];
-    let d = new Date(titleInfo[0]);
-    let displayDate = d.getFullYear() + '-' + 
-                      String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-                      String(d.getDate()).padStart(2, '0');
+    const res = await fetch(INDEX_CSV_URL + "&t=" + Date.now());
+    const csvText = await res.text();
+    cachedCSVData = parseCSV(csvText); // 轉為二維陣列
     
-    document.getElementById("sheetTitle").innerText = (titleInfo[2] || "訂單查詢") + " (" + displayDate + ")";
-    queryHeader = rows[1];
-    queryDataRows = rows.slice(2);
+    // 設定標題 (假設日期在工作表名稱位置，CSV 讀不到工作表名，我們手動顯示)
+    document.getElementById("sheetTitle").innerText = "訂單查詢系統 (CSV 即時版)";
     buildBuyerDropdown();
+    // 清空舊表格
     document.querySelector("#resultTable thead").innerHTML = "";
     document.querySelector("#resultTable tbody").innerHTML = "";
-  }
-}
-
-async function fetchOrders(force = false) {
-  // 優化：快取機制
-  if (cachedOrdersData && !force) {
-    renderOrdersTable(cachedOrdersData);
-    return;
-  }
-
-  showLoading(true, "讀取即時訂單清單...");
-  document.getElementById('selectAll').checked = false;
-  try {
-    const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
-    const data = await res.json();
-    if (data.status === "success") {
-      cachedOrdersData = data.data; // 存入快取
-      renderOrdersTable(cachedOrdersData);
-    }
-  } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
-}
-
-function renderOrdersTable(rows) {
-  const tbody = document.getElementById('tableBody');
-  if (rows.length < 2) {
-    tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>';
-    return;
-  }
-  // 優化：使用一次性 join 渲染
-  tbody.innerHTML = rows.slice(1).map((row, i) => {
-    const formattedTime = row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : "";
-    return `
-      <tr>
-        <td><input type="checkbox" class="row-checkbox" value="${i+2}"></td>
-        <td>${formattedTime}</td>
-        <td>${row[2]}</td>
-        <td>${row[3]}</td>
-        <td>${row[4]}</td>
-        <td>${row[6]||""}</td>
-        <td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td>
-      </tr>`;
-  }).join('');
+  } catch (e) { alert("讀取 CSV 資料失敗"); } finally { showLoading(false); }
 }
 
 function buildBuyerDropdown() {
-  const buyerIdx = queryHeader.indexOf("購買人");
-  if (buyerIdx === -1) return;
-  const set = new Set();
-  queryDataRows.forEach(r => { const val = (r[buyerIdx] ?? "").trim(); if (val) set.add(val); });
+  const buyerSet = new Set();
+  // 購買人在 G 欄 (Index 6)
+  for(let i=1; i<cachedCSVData.length; i++) {
+    const val = (cachedCSVData[i][6] ?? "").trim();
+    if(val && val !== "購買人") buyerSet.add(val);
+  }
   const select = document.getElementById("buyerSelect");
   select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
-  [...set].sort().forEach(v => {
+  [...buyerSet].sort().forEach(v => {
     const op = document.createElement("option"); op.value = v; op.textContent = v; select.appendChild(op);
   });
 }
 
+/**
+ * 核心修改 2：根據截圖規則渲染表格
+ */
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>購買人</th><th>項目</th><th>單價</th><th></th><th>備註</th><th>數量</th><th>小計</th></tr>`;
-  tbody.innerHTML = "";
-  const idx = { user: queryHeader.indexOf("購買人"), item: queryHeader.indexOf("項目"), price: queryHeader.indexOf("單價"), rice: queryHeader.indexOf(""), add: queryHeader.indexOf("備註"), qty: queryHeader.indexOf("數量"), sub: queryHeader.indexOf("小計") };
+  // 標題不顯示口味
+  thead.innerHTML = `<tr><th>項目</th><th>單價</th><th>備註</th><th>數量</th><th>小計</th><th>購買人</th></tr>`;
   
   let filtered = [];
   if (buyer === "ALL") {
-    filtered = queryDataRows.filter(r => (r[idx.user] ?? "").trim() !== "");
+    // 過濾 A 欄(項目)不能為空的列
+    filtered = cachedCSVData.slice(1).filter(r => (r[0] ?? "").trim() !== "");
   } else {
-    filtered = queryDataRows.filter(r => (r[idx.user] ?? "").trim() === buyer);
+    filtered = cachedCSVData.slice(1).filter(r => (r[6] ?? "").trim() === buyer);
   }
 
   let totalSum = 0;
-  // 優化：大量資料時的渲染效能
+  // 對比 A:G 欄 (口味是 C 欄 Index 2，略過不顯示)
   tbody.innerHTML = filtered.map(r => {
-    const subTotal = Number(r[idx.sub]) || 0; totalSum += subTotal;
-    return `<tr><td>${r[idx.user]||""}</td><td>${r[idx.item]||""}</td><td>${r[idx.price]||""}</td><td>${r[idx.rice]||""}</td><td>${r[idx.add]||""}</td><td>${r[idx.qty]||""}</td><td>${subTotal}</td></tr>`;
+    const subTotal = Number(r[5]) || 0; totalSum += subTotal;
+    return `<tr><td>${r[0]||""}</td><td>${r[1]||""}</td><td>${r[3]||""}</td><td>${r[4]||""}</td><td>${subTotal}</td><td>${r[6]||""}</td></tr>`;
   }).join('');
 
-  if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="6">個人合計</td><td>${totalSum}</td></tr>`;
+  if (buyer !== "ALL" && filtered.length > 0) {
+    tbody.innerHTML += `<tr class="total-row"><td colspan="5">個人金額合計</td><td>${totalSum}</td></tr>`;
+  }
 }
 
+/**
+ * 核心修改 3：訂單統計 (購買人/金額) - 比對 J:K 欄
+ */
 function renderList1() {
-  const idxBuyer = queryHeader.indexOf("購買人"), idxSub = queryHeader.indexOf("小計");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
-  const summary = {};
-  queryDataRows.forEach(r => {
-    const name = (r[idxBuyer] ?? "").trim(); const amt = Number(r[idxSub]) || 0;
-    if (name) summary[name] = (summary[name] || 0) + amt;
-  });
-  let grandTotal = 0;
-  tbody.innerHTML = Object.keys(summary).sort().map(name => {
-    grandTotal += summary[name]; return `<tr><td>${name}</td><td>${summary[name]}</td></tr>`;
-  }).join('');
-  tbody.innerHTML += `<tr class="total-row"><td>全體總計</td><td>${grandTotal}</td></tr>`;
+  thead.innerHTML = `<tr><th>購買人</th><th>金額</th></tr>`;
+  
+  const listData = [];
+  // J 是 Index 9, K 是 Index 10
+  for(let i=1; i<cachedCSVData.length; i++) {
+    const name = (cachedCSVData[i][9] ?? "").trim();
+    const amt = cachedCSVData[i][10];
+    if(name && name !== "購買人") listData.push({ name, amt });
+  }
+
+  // P2 全體總計在 Index 15, Row Index 1
+  const grandTotal = cachedCSVData[1][15] || 0;
+
+  tbody.innerHTML = listData.map(item => `<tr><td>${item.name}</td><td>${item.amt}</td></tr>`).join('');
+  tbody.innerHTML += `<tr class="total-row"><td>全體總計金額 (P2)</td><td>${grandTotal}</td></tr>`;
 }
 
+/**
+ * 核心修改 4：訂單統計 (項目/數量) - 比對 M:N 欄
+ */
 function renderList2() {
-  const idxItem = queryHeader.indexOf("項目"), idxQty = queryHeader.indexOf("數量");
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
-  const summary = {};
-  queryDataRows.forEach(r => {
-    const item = (r[idxItem] ?? "").trim(); const qty = Number(r[idxQty]) || 0;
-    if (item) summary[item] = (summary[item] || 0) + qty;
-  });
-  let grandQty = 0;
-  tbody.innerHTML = Object.keys(summary).sort().map(item => {
-    grandQty += summary[item]; return `<tr><td>${item}</td><td>${summary[item]}</td></tr>`;
-  }).join('');
-  tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${grandQty}</td></tr>`;
+  thead.innerHTML = `<tr><th>項目</th><th>訂購數量</th></tr>`;
+  
+  const listData = [];
+  // M 是 Index 12, N 是 Index 13
+  for(let i=1; i<cachedCSVData.length; i++) {
+    const item = (cachedCSVData[i][12] ?? "").trim();
+    const qty = cachedCSVData[i][13];
+    if(item && item !== "項目") listData.push({ item, qty });
+  }
+
+  // R2 總數量在 Index 17, Row Index 1
+  const totalQty = cachedCSVData[1][17] || 0;
+
+  tbody.innerHTML = listData.map(d => `<tr><td>${d.item}</td><td>${d.qty}</td></tr>`).join('');
+  tbody.innerHTML += `<tr class="total-row"><td>總數量 (R2)</td><td>${totalQty}</td></tr>`;
 }
 
 document.getElementById("buyerSelect").addEventListener("change", (e) => {
@@ -380,6 +344,39 @@ document.getElementById("listSelect").addEventListener("change", (e) => {
   document.getElementById("buyerSelect").value = "";
   if (e.target.value === "list1") renderList1(); else if (e.target.value === "list2") renderList2();
 });
+
+// CSV 解析輔助函式
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    // 簡單的逗號分割 (若內容含逗號需更複雜解析，此處依標準 CSV 處理)
+    const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+    rows.push(cols.map(c => c.replace(/^"|"$/g, "").trim()));
+  }
+  return rows;
+}
+
+// 其餘功能 (fetchOrders, prepareDelete, sendData 等) 維持不變...
+async function fetchOrders(force = false) {
+  if (cachedOrdersData && !force) { renderOrdersTable(cachedOrdersData); return; }
+  showLoading(true, "讀取即時訂單(後端)...");
+  try {
+    const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
+    const data = await res.json();
+    if (data.status === "success") { cachedOrdersData = data.data; renderOrdersTable(cachedOrdersData); }
+  } catch (e) { alert("讀取後端資料失敗"); } finally { showLoading(false); }
+}
+
+function renderOrdersTable(rows) {
+  const tbody = document.getElementById('tableBody');
+  if (rows.length < 2) { tbody.innerHTML = '<tr><td colspan="7">目前尚無任何訂單</td></tr>'; return; }
+  tbody.innerHTML = rows.slice(1).map((row, i) => {
+    const formattedTime = row[0] ? new Date(row[0]).toLocaleString('zh-TW', { hour12: true }) : "";
+    return `<tr><td><input type="checkbox" class="row-checkbox" value="${i+2}"></td><td>${formattedTime}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[6]||""}</td><td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td></tr>`;
+  }).join('');
+}
 
 async function fetchFormStatus() {
   const label = document.getElementById('formStatusLabel'); label.innerText = "查詢中...";
@@ -433,7 +430,7 @@ document.getElementById('btnConfirm').onclick = async () => {
     alert(result.message);
     if(result.status === 'success') {
       if (statusToChange !== null) fetchFormStatus();
-      else fetchOrders(true);
+      else { cachedOrdersData = null; fetchOrders(true); }
     }
   } catch(e) { alert("執行失敗"); } finally { showLoading(false); statusToChange = null; }
 };
@@ -445,7 +442,7 @@ async function loadSettingsOptions() {
   try {
     const res = await fetch(SCRIPT_URL_SET + "?action=getOptions");
     const data = await res.json();
-    cachedRestaurantOptions = data; // 存入快取
+    cachedRestaurantOptions = data;
     const select = document.getElementById('restaurant');
     select.innerHTML = data.map(item => item ? `<option value="${item}">${item}</option>` : '').join('');
   } catch(e) { console.error("店家選單載入失敗"); }
