@@ -86,7 +86,7 @@
       </div>
     </section>
 
-    <!-- 查詢分頁 -->
+    <!-- 查詢分頁 (使用 CSV 優化) -->
     <section id="queryPage" class="page">
       <div class="card">
         <div class="header">
@@ -116,7 +116,6 @@
       </div>
     </section>
 
-    <!-- 刪除分頁 -->
     <section id="deletePage" class="page">
       <div class="card">
         <div class="header">
@@ -141,7 +140,6 @@
       </div>
     </section>
 
-    <!-- 設定分頁 -->
     <section id="settingsPage" class="page">
       <div class="settings-card">
         <h3>訂餐管理系統</h3>
@@ -178,11 +176,13 @@
 
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzh9zPFHf6vmhQQR7LrHlokXkPPKnQ2u9ZiqnL6x9kMe4YSaMkrLJJOsqU72OXOIwwo/exec"; 
-const INDEX_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1289096180&single=true&output=csv";
 const rawFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScooZ_B9Jm7a2-IsEfJhwhLR7hsLyy8knIU3TKuzM7pw_Z5RQ/viewform";
 
-let cachedCSVData = null; // 存放 index CSV 的二維陣列
-let cachedOrdersData = null; 
+// 1. 修改位置：定義 CSV 連結
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQISD3cRAvsldviyxyfFi7xQVE12l900EW1yu8_OXOS-uDIr12XAr8zISHsZpJzTBLe_j4kuHWwgdG6/pub?gid=1289096180&single=true&output=csv";
+
+let cachedQueryRows = null; // CSV 快取
+let cachedOrdersData = null;
 let cachedRestaurantOptions = null;
 
 let statusToChange = null;
@@ -226,147 +226,142 @@ async function loadSettingsPage() {
   await Promise.all(tasks);
 }
 
-/**
- * 核心修改 1：改讀 CSV 以加速讀取
- */
+// 2. 修改位置：loadQueryData 改為抓取 CSV
 async function loadQueryData(force = false) {
-  if (cachedCSVData && !force) {
-    buildBuyerDropdown();
+  if (cachedQueryRows && !force) {
+    processQueryData(cachedQueryRows);
     return;
   }
   
   showLoading(true, "讀取最新查詢資料(CSV)...");
   try {
-    const res = await fetch(INDEX_CSV_URL + "&t=" + Date.now());
-    const csvText = await res.text();
-    cachedCSVData = parseCSV(csvText); // 轉為二維陣列
-    
-    // 設定標題 (假設日期在工作表名稱位置，CSV 讀不到工作表名，我們手動顯示)
-    document.getElementById("sheetTitle").innerText = "訂單查詢系統 (CSV 即時版)";
-    buildBuyerDropdown();
-    // 清空舊表格
-    document.querySelector("#resultTable thead").innerHTML = "";
-    document.querySelector("#resultTable tbody").innerHTML = "";
-  } catch (e) { alert("讀取 CSV 資料失敗"); } finally { showLoading(false); }
+    const res = await fetch(`${CSV_URL}&t=${Date.now()}`);
+    const text = await res.text();
+    const rows = parseCSV(text); // 3. 修改位置：解析 CSV
+    cachedQueryRows = rows;
+    processQueryData(rows);
+  } catch (e) { alert("讀取查詢資料失敗"); } finally { showLoading(false); }
 }
 
-function buildBuyerDropdown() {
-  const buyerSet = new Set();
-  // 購買人在 G 欄 (Index 6)
-  for(let i=1; i<cachedCSVData.length; i++) {
-    const val = (cachedCSVData[i][6] ?? "").trim();
-    if(val && val !== "購買人") buyerSet.add(val);
+function processQueryData(rows) {
+  if (rows.length > 4) {
+    // 4. 修改位置：日期顯示改為 P4 (Index 15)
+    let displayDate = rows[3][15] || "未知日期";
+    document.getElementById("sheetTitle").innerText = "訂單查詢 (" + displayDate + ")";
+    buildBuyerDropdown(rows);
+    document.querySelector("#resultTable thead").innerHTML = "";
+    document.querySelector("#resultTable tbody").innerHTML = "";
+  }
+}
+
+// 5. 修改位置：CSV 解析工具
+function parseCSV(text) {
+  const result = [];
+  let cur = [];
+  let curVal = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i+1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { curVal += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else curVal += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { cur.push(curVal); curVal = ""; }
+      else if (ch === '\n') { cur.push(curVal); result.push(cur); cur = []; curVal = ""; }
+      else if (ch !== '\r') curVal += ch;
+    }
+  }
+  if (cur.length > 0 || curVal !== "") { cur.push(curVal); result.push(cur); }
+  return result;
+}
+
+function buildBuyerDropdown(rows) {
+  const set = new Set();
+  // 數據從第 2 列開始，購買人在 G 欄 (Index 6)
+  for(let i=1; i<rows.length; i++){
+    const val = (rows[i][6] || "").trim();
+    if (val && val !== "購買人") set.add(val);
   }
   const select = document.getElementById("buyerSelect");
   select.innerHTML = '<option value="">--請選擇--</option><option value="ALL">全部訂單清單</option>';
-  [...buyerSet].sort().forEach(v => {
+  [...set].sort().forEach(v => {
     const op = document.createElement("option"); op.value = v; op.textContent = v; select.appendChild(op);
   });
 }
 
-/**
- * 核心修改 2：根據截圖規則渲染表格
- */
+// 6. 修改位置：renderNormalTable 比對 A:G 欄位 (排除 C 口味)
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  // 標題不顯示口味
   thead.innerHTML = `<tr><th>項目</th><th>單價</th><th>備註</th><th>數量</th><th>小計</th><th>購買人</th></tr>`;
   
+  // A=0, B=1, C=2, D=3, E=4, F=5, G=6
   let filtered = [];
-  if (buyer === "ALL") {
-    // 過濾 A 欄(項目)不能為空的列
-    filtered = cachedCSVData.slice(1).filter(r => (r[0] ?? "").trim() !== "");
-  } else {
-    filtered = cachedCSVData.slice(1).filter(r => (r[6] ?? "").trim() === buyer);
+  for(let i=1; i<cachedQueryRows.length; i++){
+    const row = cachedQueryRows[i];
+    const rowBuyer = (row[6] || "").trim();
+    if (!rowBuyer || rowBuyer === "購買人") continue;
+    if (buyer === "ALL" || rowBuyer === buyer) filtered.push(row);
   }
 
   let totalSum = 0;
-  // 對比 A:G 欄 (口味是 C 欄 Index 2，略過不顯示)
   tbody.innerHTML = filtered.map(r => {
-    const subTotal = Number(r[5]) || 0; totalSum += subTotal;
-    return `<tr><td>${r[0]||""}</td><td>${r[1]||""}</td><td>${r[3]||""}</td><td>${r[4]||""}</td><td>${subTotal}</td><td>${r[6]||""}</td></tr>`;
+    const subTotal = Number(r[5]) || 0; 
+    totalSum += subTotal;
+    return `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td></tr>`;
   }).join('');
 
-  if (buyer !== "ALL" && filtered.length > 0) {
-    tbody.innerHTML += `<tr class="total-row"><td colspan="5">個人金額合計</td><td>${totalSum}</td></tr>`;
-  }
+  if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="5">個人合計</td><td>${totalSum}</td></tr>`;
 }
 
-/**
- * 核心修改 3：訂單統計 (購買人/金額) - 比對 J:K 欄
- */
+// 7. 修改位置：renderList1 比對 J:K 欄 (Index 9, 10)，總計 P2 (Index 1, 15)
 function renderList1() {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>購買人</th><th>金額</th></tr>`;
+  thead.innerHTML = `<tr><th>購買人</th><th>金額總計</th></tr>`;
   
-  const listData = [];
-  // J 是 Index 9, K 是 Index 10
-  for(let i=1; i<cachedCSVData.length; i++) {
-    const name = (cachedCSVData[i][9] ?? "").trim();
-    const amt = cachedCSVData[i][10];
-    if(name && name !== "購買人") listData.push({ name, amt });
+  const summaryRows = [];
+  for(let i=1; i<cachedQueryRows.length; i++){
+    const name = (cachedQueryRows[i][9] || "").trim();
+    const amt = (cachedQueryRows[i][10] || "").trim();
+    if(name && name !== "購買人") summaryRows.push({name, amt});
   }
+  
+  // 全體總計 P2 (Index 1, 15)
+  const grandTotal = cachedQueryRows[1][15] || 0;
 
-  // P2 全體總計在 Index 15, Row Index 1
-  const grandTotal = cachedCSVData[1][15] || 0;
-
-  tbody.innerHTML = listData.map(item => `<tr><td>${item.name}</td><td>${item.amt}</td></tr>`).join('');
-  tbody.innerHTML += `<tr class="total-row"><td>全體總計金額 (P2)</td><td>${grandTotal}</td></tr>`;
+  tbody.innerHTML = summaryRows.map(s => `<tr><td>${s.name}</td><td>${s.amt}</td></tr>`).join('');
+  tbody.innerHTML += `<tr class="total-row"><td>全體總計金額</td><td>${grandTotal}</td></tr>`;
 }
 
-/**
- * 核心修改 4：訂單統計 (項目/數量) - 比對 M:N 欄
- */
+// 8. 修改位置：renderList2 比對 M:N 欄 (Index 12, 13)，總數量 R2 (Index 1, 17)
 function renderList2() {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>項目</th><th>訂購數量</th></tr>`;
+  thead.innerHTML = `<tr><th>項目</th><th>訂購數量總計</th></tr>`;
   
-  const listData = [];
-  // M 是 Index 12, N 是 Index 13
-  for(let i=1; i<cachedCSVData.length; i++) {
-    const item = (cachedCSVData[i][12] ?? "").trim();
-    const qty = cachedCSVData[i][13];
-    if(item && item !== "項目") listData.push({ item, qty });
+  const summaryRows = [];
+  for(let i=1; i<cachedQueryRows.length; i++){
+    const item = (cachedQueryRows[i][12] || "").trim();
+    const qty = (cachedQueryRows[i][13] || "").trim();
+    if(item && item !== "項目") summaryRows.push({item, qty});
   }
 
-  // R2 總數量在 Index 17, Row Index 1
-  const totalQty = cachedCSVData[1][17] || 0;
+  // 總數量 R2 (Index 1, 17)
+  const totalQty = cachedQueryRows[1][17] || 0;
 
-  tbody.innerHTML = listData.map(d => `<tr><td>${d.item}</td><td>${d.qty}</td></tr>`).join('');
-  tbody.innerHTML += `<tr class="total-row"><td>總數量 (R2)</td><td>${totalQty}</td></tr>`;
+  tbody.innerHTML = summaryRows.map(s => `<tr><td>${s.item}</td><td>${s.qty}</td></tr>`).join('');
+  tbody.innerHTML += `<tr class="total-row"><td>總數量</td><td>${totalQty}</td></tr>`;
 }
 
-document.getElementById("buyerSelect").addEventListener("change", (e) => {
-  document.getElementById("listSelect").value = "";
-  if (e.target.value) renderNormalTable(e.target.value);
-});
-document.getElementById("listSelect").addEventListener("change", (e) => {
-  document.getElementById("buyerSelect").value = "";
-  if (e.target.value === "list1") renderList1(); else if (e.target.value === "list2") renderList2();
-});
-
-// CSV 解析輔助函式
-function parseCSV(text) {
-  const rows = [];
-  const lines = text.split(/\r?\n/);
-  for (const line of lines) {
-    if (line.trim() === "") continue;
-    // 簡單的逗號分割 (若內容含逗號需更複雜解析，此處依標準 CSV 處理)
-    const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
-    rows.push(cols.map(c => c.replace(/^"|"$/g, "").trim()));
-  }
-  return rows;
-}
-
-// 其餘功能 (fetchOrders, prepareDelete, sendData 等) 維持不變...
+// 其餘功能 (Delete, Settings) 維持原本 API 邏輯
 async function fetchOrders(force = false) {
   if (cachedOrdersData && !force) { renderOrdersTable(cachedOrdersData); return; }
-  showLoading(true, "讀取即時訂單(後端)...");
+  showLoading(true, "讀取即時訂單清單...");
   try {
     const res = await fetch(`${GAS_URL}?action=getOrders&t=${Date.now()}`);
     const data = await res.json();
-    if (data.status === "success") { cachedOrdersData = data.data; renderOrdersTable(cachedOrdersData); }
-  } catch (e) { alert("讀取後端資料失敗"); } finally { showLoading(false); }
+    if (data.status === "success") { cachedOrdersData = data.data; renderOrdersTable(data.data); }
+  } catch (e) { alert("無法獲取即時資料"); } finally { showLoading(false); }
 }
 
 function renderOrdersTable(rows) {
@@ -377,6 +372,15 @@ function renderOrdersTable(rows) {
     return `<tr><td><input type="checkbox" class="row-checkbox" value="${i+2}"></td><td>${formattedTime}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[6]||""}</td><td><button class="btn-del" onclick="prepareDelete(${i+2})">刪除</button></td></tr>`;
   }).join('');
 }
+
+document.getElementById("buyerSelect").addEventListener("change", (e) => {
+  document.getElementById("listSelect").value = "";
+  if (e.target.value) renderNormalTable(e.target.value);
+});
+document.getElementById("listSelect").addEventListener("change", (e) => {
+  document.getElementById("buyerSelect").value = "";
+  if (e.target.value === "list1") renderList1(); else if (e.target.value === "list2") renderList2();
+});
 
 async function fetchFormStatus() {
   const label = document.getElementById('formStatusLabel'); label.innerText = "查詢中...";
