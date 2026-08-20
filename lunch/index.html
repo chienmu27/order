@@ -298,7 +298,7 @@ function buildBuyerDropdown(rows) {
 
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>項目</th><th>單價</th><th>備註</th><th>數量</th><th>小計</th><th>購買人</th></tr>`;
+  thead.innerHTML = `<tr><th>項目</th><th>單價</th><th>數量</th><th>小計</th><th>購買人</th><th>備註</th></tr>`;
   
   let filtered = [];
   for(let i=1; i<cachedQueryRows.length; i++){
@@ -312,7 +312,7 @@ function renderNormalTable(buyer) {
   tbody.innerHTML = filtered.map(r => {
     const subTotal = Number(r[5]) || 0; 
     totalSum += subTotal;
-    return `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td></tr>`;
+    return `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td><td>${r[3]}</td></tr>`;
   }).join('');
 
   if (buyer !== "ALL" && filtered.length > 0) tbody.innerHTML += `<tr class="total-row"><td colspan="5">個人合計</td><td>${totalSum}</td></tr>`;
