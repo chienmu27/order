@@ -298,7 +298,7 @@ function buildBuyerDropdown(rows) {
 
 function renderNormalTable(buyer) {
   const thead = document.querySelector("#resultTable thead"), tbody = document.querySelector("#resultTable tbody");
-  thead.innerHTML = `<tr><th>項目</th><th>單價</th><th>備註</th><th>數量</th><th>小計</th><th>購買人</th></tr>`;
+  thead.innerHTML = `<tr><th>項目</th><th>單價</th><th>數量</th><th>小計</th><th>購買人</th></tr><th>備註</th>`;
   
   let filtered = [];
   for(let i=1; i<cachedQueryRows.length; i++){
